@@ -1,0 +1,252 @@
+/* ==========================================================================
+   MARS documentation — orange accents and figure styling
+   ========================================================================== */
+
+/* Fine-tune the Material "deep orange / orange" palette toward the warm
+   MARS brand tones (used for links, admonition titles, code accents). */
+:root {
+  --md-primary-fg-color:        #dd3e00;  /* MARS rust orange  */
+  --md-primary-fg-color--light: #dd3e00;  /* sand              */
+  --md-primary-fg-color--dark:  #dd3e00;  /* deep mars red     */
+  --md-accent-fg-color:         #dd3e00;  /* warm amber accent */
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #dd3e00;
+  --md-accent-fg-color:         rgb(255, 0, 0);
+}
+
+/* ---- Figures & images ---------------------------------------------------- */
+/* Centred, rounded, lightly bordered figures with orange captions. Pair with
+   Markdown of the form:
+
+       <figure markdown>
+         ![alt](../assets/alanine/conformers.png){ width="520" }
+         <figcaption>Caption text.</figcaption>
+       </figure>
+*/
+.md-typeset figure {
+  margin: 1.4em auto;
+  text-align: center;
+}
+
+.md-typeset figure img,
+.md-typeset p > img {
+  border: 1px solid var(--md-primary-fg-color--light);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(178, 47, 32, 0.12);
+  background: #fff;
+  padding: 4px;
+  max-width: 100%;
+}
+
+.md-typeset figcaption {
+  font-size: 0.82rem;
+  color: var(--md-primary-fg-color--dark);
+  margin-top: 0.5em;
+  max-width: 46rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Two-up / three-up image rows: wrap images in a <div class="img-row"> */
+.md-typeset .img-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  align-items: flex-start;
+}
+.md-typeset .img-row figure { margin: 0.4em 0; flex: 1 1 280px; }
+
+/* ---- Header banner colour ------------------------------------------------ */
+/* The orange/red of the palette is reused only for accents/links. The top
+   banner itself is a neutral warm charcoal so the orange logo and icon stand
+   out against it instead of blending into an orange bar. */
+.md-header,
+.md-tabs {
+  background-color: #2d2a28;   /* warm charcoal */
+  color: #ffffff;
+}
+
+/* ---- Header banner logo (larger than the default 1.2rem) ----------------- */
+/* Enlarge the logo in the top banner and give the header a bit more height to
+   fit it comfortably. The site name ("MARS") next to it is hidden so only the
+   logo shows. */
+.md-header {
+  height: 3.4rem;
+}
+.md-header__button.md-logo {
+  margin: 0.15rem 0.4rem;
+  padding: 0;
+}
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 3.0rem;
+  width: auto;
+}
+/* Hide the "MARS" title text in the banner (keep the logo only), but keep the
+   element in the flex layout as a growing spacer. `display: none` would remove
+   it entirely, collapsing search / palette toggle / GitHub link to the left;
+   an invisible flex-grow spacer keeps those controls pushed to the right. */
+.md-header__title {
+  visibility: hidden;
+  flex-grow: 1;
+}
+
+/* ---- Home-page hero logo (replaces the "MARS" title) --------------------- */
+.md-typeset h1 img.home-logo {
+  display: block;
+  width: min(440px, 82%);
+  height: auto;
+  margin: 0.4rem auto 0.2rem;
+  border: none;
+  box-shadow: none;
+  background: none;
+  padding: 0;
+}
+.md-typeset h1:has(img.home-logo) {
+  text-align: center;
+  margin-bottom: 0;
+}
+
+/* ---- Funding / acknowledgement logo row --------------------------------- */
+/* White rounded container so dark-text logos read in both light and dark
+   themes; logos are normalized to a common height and stripped of the
+   default figure border. */
+.md-typeset .funding-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--md-primary-fg-color--light);
+  border-radius: 10px;
+  padding: 1.2rem 1.6rem;
+  margin: 1.4em auto;
+  max-width: 660px;
+}
+.md-typeset .funding-logos img {
+  height: 60px;
+  width: auto;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ---- Home-page feature GIF gallery -------------------------------------- */
+/* A 2x2 grid of animated capability cards (conf search / IR / solvation /
+   NCI). Each card is a link: GIF on top, orange title + one-line below. */
+.md-typeset .feature-gifs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2rem;
+  margin: 1.6em 0;
+}
+@media screen and (max-width: 44.9em) {
+  .md-typeset .feature-gifs { grid-template-columns: 1fr; }
+}
+
+.md-typeset .feat-card {
+  position: relative;                 /* anchor for the stretched link overlay */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(221, 62, 0, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--md-default-bg-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+/* full-card clickable overlay (avoids putting block content inside <a>) */
+.md-typeset a.feat-link {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.md-typeset .feat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 10px 24px rgba(221, 62, 0, 0.22);
+}
+
+/* GIF area: fixed height, letterboxed on a soft background so nothing is
+   cropped regardless of each clip's aspect ratio. */
+.md-typeset .feat-media {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(221, 62, 0, 0.06), transparent 70%),
+    #faf7f4;
+  overflow: hidden;
+}
+[data-md-color-scheme="slate"] .md-typeset .feat-media {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(221, 62, 0, 0.12), transparent 70%),
+    #1b1b1d;
+}
+.md-typeset .feat-media img {
+  max-width: calc(100% - 1.4rem);
+  max-height: calc(100% - 1.4rem);
+  width: auto;
+  object-fit: contain;
+  /* white rounded frame so the white-background clips read as an intentional
+     framed viewport in both light and dark themes */
+  background: #fff !important;
+  border: 1px solid rgba(221, 62, 0, 0.18) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12) !important;
+  padding: 4px !important;
+  margin: 0 !important;
+}
+
+.md-typeset .feat-body {
+  padding: 0.85rem 1rem 1rem;
+  border-top: 3px solid var(--md-primary-fg-color);
+}
+.md-typeset .feat-title {
+  display: block;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--md-primary-fg-color);
+  margin-bottom: 0.15rem;
+}
+.md-typeset .feat-title::after {
+  content: " \2192";                /* subtle arrow cue that the card is a link */
+  opacity: 0;
+  transition: opacity 0.18s ease, margin-left 0.18s ease;
+}
+.md-typeset .feat-card:hover .feat-title::after {
+  opacity: 1;
+  margin-left: 0.2rem;
+}
+.md-typeset .feat-desc {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Placeholder box shown until a real snapshot is dropped in. Use:
+       <div class="img-placeholder">conformer overlay — run render_snapshots.py</div>
+*/
+.md-typeset .img-placeholder {
+  border: 2px dashed var(--md-accent-fg-color);
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+      45deg, rgba(224,122,31,0.06), rgba(224,122,31,0.06) 10px,
+      rgba(224,122,31,0.12) 10px, rgba(224,122,31,0.12) 20px);
+  color: var(--md-primary-fg-color--dark);
+  font-style: italic;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  margin: 1.2em auto;
+  max-width: 520px;
+}

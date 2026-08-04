@@ -1,0 +1,40 @@
+# MARS conda environment.
+#
+#   conda env create -f environment.yml
+#   conda activate mars
+#
+# The base file installs MARS + the 3D viewer on CPU JAX. GPU and the optional
+# ML potentials are commented blocks below — uncomment the ones you need, or
+# install them afterwards with pip (see docs/install.md).
+#
+# IMPORTANT (dxtb): dxtb is PyTorch-based and historically capped numpy<2,
+# which conflicts with the JAX stack (numpy>=2). Use dxtb>=0.4 and install it
+# *after* JAX/SO3LR/MACE with `--upgrade-strategy only-if-needed`, or keep it in
+# a separate environment. See docs/install.md "Dependency conflicts".
+
+name: mars
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      # MARS + viewer (CPU JAX comes in as a dependency of mars)
+      - -e .[viewer]
+
+      # --- GPU JAX: uncomment ONE matching your CUDA driver (nvidia-smi) ----
+      # - "jax[cuda12]"
+      # - "jax[cuda13]"
+
+      # --- ML potentials: uncomment what you need --------------------------
+      # SO3LR (default): helper deps here, then install SO3LR from source:
+      #   git clone https://github.com/general-molecular-simulations/so3lr.git
+      #   cd so3lr && pip install .
+      # - ase
+      # - h5py
+
+      # MACE (also: pip install mace-jax for JAX-native inference)
+      # - mace-torch>=0.3.13
+
+      # dxtb (install last; >=0.4 coexists with numpy>=2)
+      # - "dxtb[libcint]>=0.4.0"

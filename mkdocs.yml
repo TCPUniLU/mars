@@ -1,0 +1,172 @@
+site_name: MARS
+site_description: >-
+  Machine-Learned Force Field Framework for Automated Conformational
+  Sampling, Vibrational Spectroscopy, and Microsolvation — JAX-native
+  and GPU-accelerated.
+site_author: Sergio Suárez-Dou
+site_url: https://tcpunilu.github.io/mars/
+repo_url: https://github.com/TCPUniLU/mars
+repo_name: TCPUniLU/mars
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 University of Luxembourg
+
+# Catch link / nav problems at build time, but don't fail on the
+# docstring-quality warnings that griffe emits for untyped parameters
+# in the JAX-heavy modules — those are not breaking issues for the
+# rendered site.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  nav:
+    not_found: warn
+    omitted_files: warn
+    absolute_links: warn
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.ico
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - assets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - glightbox:                # click-to-zoom lightbox for figures
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      width: 100%
+      height: auto
+      zoomable: true
+      draggable: true
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            docstring_section_style: table
+            heading_level: 2
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: install.md
+      - Quickstart: quickstart.md
+  - User guide:
+      - guide/index.md
+      - Conformational search: guide/conformer_search.md
+      - IR spectroscopy: guide/ir_spectroscopy.md
+      - Optimization: guide/optimization.md
+      - Explicit solvation: guide/solvation.md
+      - NCI mode: guide/nci_mode.md
+      - Potentials: guide/potentials.md
+      - Logging: guide/logging.md
+  - Examples:
+      - examples/index.md
+      - "End-to-end: alanine dipeptide": examples/alanine_dipeptide.md
+      - Conformational search recipes: examples/conformer_search_recipes.md
+      - IR recipes: examples/ir_recipes.md
+      - Optimization recipes: examples/optimize_recipes.md
+      - Solvation recipes: examples/solvation_recipes.md
+  - Config files:
+      - config/overview.md
+      - "[conformer_search]": config/conformer_search_section.md
+      - "[ir]": config/ir_section.md
+      - "[optimize]": config/optimize_section.md
+      - "[solvation]": config/solvation_section.md
+      - "[constraints]": config/constraints_section.md
+  - CLI reference:
+      - cli/overview.md
+      - mars (default): cli/conformer_search.md
+      - mars ir: cli/ir.md
+      - mars optimize: cli/optimize.md
+      - mars solvation: cli/solvation.md
+      - mars viewer: cli/viewer.md
+  - API reference:
+      - api/index.md
+      - mars.utils: api/utils.md
+      - mars.potentials: api/potentials.md
+      - mars.ir: api/ir.md
+      - mars.viewer: api/viewer.md
+      - mars.solvation: api/solvation.md
+      - mars.solvents: api/solvents.md
+      - mars.conf_sampling: api/conf_sampling.md
+      - mars.optimizer: api/optimizer.md
+      - mars.ensemble: api/ensemble.md
+      - mars.rmsd: api/rmsd.md
+      - mars.mtd: api/mtd.md
+      - mars.topology: api/topology.md
+      - mars.flexibility: api/flexibility.md
+      - mars.functional_groups: api/functional_groups.md
+      - mars.log: api/log.md
+  - About:
+      - Citation: about/citation.md
+      - License: about/license.md

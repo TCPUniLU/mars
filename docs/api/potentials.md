@@ -1,0 +1,3 @@
+# `mars.potentials`
+
+::: mars.potentials

@@ -1,0 +1,167 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mars"
+version = "0.1.0"
+description = "MARS — Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Sergio Suárez-Dou", email = "sergio.suarezdou@uni.lu" },
+]
+keywords = [
+    "conformational search",
+    "molecular dynamics",
+    "metadynamics",
+    "IR spectroscopy",
+    "entropy sampling",
+    "JAX",
+    "GPU acceleration",
+    "computational chemistry",
+    "SO3LR",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+    "jax>=0.4.20",
+    "jax-md>=0.2.8",
+    "jaxopt>=0.8.0",
+    "numpy",
+    "scipy",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+# --- JAX hardware backends (pick one matching your CUDA driver) ------------
+# CPU-only JAX comes from the base `jax` dependency above — no extra needed.
+cuda12 = ["jax[cuda12]"]
+cuda13 = ["jax[cuda13]"]
+gpu = ["jax[cuda12]"]            # back-compat alias for cuda12
+
+# --- 3D viewer / plots (no JAX needed) -------------------------------------
+viewer = ["matplotlib>=3.5"]
+
+# --- ML potentials (optional; choose what you need) ------------------------
+# SO3LR: helper deps only. SO3LR itself is a source install:
+#   git clone https://github.com/general-molecular-simulations/so3lr.git
+#   cd so3lr && pip install .
+so3lr = ["ase", "h5py"]
+# MACE: JAX-native inference; also `pip install mace-jax` (PyTorch only needed
+# to convert a foundation checkpoint once).
+mace = ["mace-torch>=0.3.13"]
+# dxtb: PyTorch-based GFN-xTB. Use >=0.4 so it allows numpy>=2 and coexists
+# with the JAX stack (see docs/install.md "Dependency conflicts").
+dxtb = ["dxtb[libcint]>=0.4.0"]
+
+# Everything pip-installable at once (SO3LR still needs its source install,
+# and the GPU wheel is chosen separately via [cuda12]/[cuda13]).
+all = [
+    "matplotlib>=3.5",
+    "ase",
+    "h5py",
+    "mace-torch>=0.3.13",
+    "dxtb[libcint]>=0.4.0",
+]
+
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.24",
+    "pymdown-extensions>=10.0",
+    "mkdocs-glightbox>=0.4",
+    "black>=23.0",            # mkdocstrings uses it to format rendered signatures
+]
+
+[project.urls]
+"Bug Reports" = "https://github.com/TCPUniLU/mars/issues"
+"Source" = "https://github.com/TCPUniLU/mars"
+"Documentation" = "https://tcpunilu.github.io/mars/"
+
+[project.scripts]
+mars = "mars.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mars*"]
+
+[tool.setuptools.package-data]
+mars = ["*.md"]
+"mars.solvents" = ["manifest.toml", "library/*.xyz"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+addopts = "-ra"
+markers = [
+    "slow: long-running tests (skipped by default in CI)",
+    "requires_so3lr: requires the SO3LR potential weights to be installed",
+    "requires_mace: requires the MACE calculator to be installed",
+    "requires_dxtb: requires the dxtb package to be installed",
+    "cli: end-to-end CLI subprocess smoke tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:tqdm",
+    "ignore::FutureWarning:jax",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["test/__pycache__", "mars/__pycache__"]
+
+[tool.ruff.lint]
+# Conservative rule set focused on real bugs:
+#   E/F     pycodestyle errors + pyflakes
+#   I       import sorting
+#   B       bugbear (likely-buggy idioms)
+# We deliberately skip UP (pyupgrade) to keep the existing `Dict`/`Optional`
+# annotation style across the codebase.
+select = ["E", "F", "I", "B"]
+ignore = [
+    "E501",   # line too long (line-length already 100; math blocks can exceed)
+    "E701",   # multiple statements on one line (common in JAX dispatch helpers)
+    "E702",   # multiple statements with semicolons (same reason)
+    "E741",   # ambiguous variable names (we use l, I, O for math/atomic indices)
+    "E402",   # module-level import not at top (precision setup before imports)
+    "E722",   # bare except — used as a last-resort fallback in a few places
+    "E731",   # lambda assignment (occasional readable inline lambda)
+    "F541",   # f-string without placeholders (common in log banners)
+    "F841",   # unused local variables (math code keeps temporaries for clarity)
+    "B007",   # unused loop control variable (vectorised math idioms)
+    "B008",   # function call in default argument (jax.numpy arrays appear there)
+    "B027",   # empty method without @abstractmethod (used in base potentials)
+    "B028",   # warnings without explicit stacklevel
+    "B904",   # raise from inside except — not consistently applied yet
+    "B905",   # zip() without explicit strict= (many intentional equal-length zips)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test/*" = ["F401", "F841", "I001", "E402"]
+"mars/__init__.py" = ["F401", "I001"]  # re-exports
+"mars/solvents/__init__.py" = ["I001"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312", "py313"]
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | mars/solvents/library
+)/
+'''

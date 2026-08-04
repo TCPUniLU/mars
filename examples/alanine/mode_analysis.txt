@@ -1,0 +1,385 @@
+======================================================================
+VIBRATIONAL MODE ANALYSIS
+======================================================================
+Molecule: CCONCCCONCHHHHHHHHHHHH (22 atoms)
+Temperature: 300.0 K
+Energy: -40.423313 eV
+Total modes: 66 (3N)
+
+----------------------------------------------------------------------
+MOLECULAR TOPOLOGY
+----------------------------------------------------------------------
+Bonds:     21 (19 single, 2 double, 0 triple)
+Angles:    36
+Dihedrals: 41
+
+Bonds:
+  C(0)-C(1)  d=1.505 A  [single]
+  C(0)-H(10)  d=1.091 A  [single]
+  C(0)-H(11)  d=1.089 A  [single]
+  C(0)-H(12)  d=1.090 A  [single]
+  C(1)=O(2)  d=1.222 A  [double]
+  C(1)-N(3)  d=1.350 A  [single]
+  N(3)-C(4)  d=1.452 A  [single]
+  N(3)-H(13)  d=1.004 A  [single]
+  C(4)-C(5)  d=1.512 A  [single]
+  C(4)-C(6)  d=1.537 A  [single]
+  C(4)-H(14)  d=1.092 A  [single]
+  C(5)-H(15)  d=1.090 A  [single]
+  C(5)-H(16)  d=1.088 A  [single]
+  C(5)-H(17)  d=1.091 A  [single]
+  C(6)=O(7)  d=1.217 A  [double]
+  C(6)-N(8)  d=1.344 A  [single]
+  N(8)-C(9)  d=1.439 A  [single]
+  N(8)-H(18)  d=1.012 A  [single]
+  C(9)-H(19)  d=1.088 A  [single]
+  C(9)-H(20)  d=1.091 A  [single]
+  C(9)-H(21)  d=1.092 A  [single]
+
+----------------------------------------------------------------------
+MODE CLASSIFICATION SUMMARY
+----------------------------------------------------------------------
+Trans/Rot:  7
+Stretching: 12
+Bending:    13
+Torsion:    18
+Mixed:      16
+Total vibrational: 59
+Total modes: 66
+
+----------------------------------------------------------------------------------------------------
+ALL MODES
+----------------------------------------------------------------------------------------------------
+Mode   Freq (cm-1)    Intensity    Type         Label                          Functional Group
+----------------------------------------------------------------------------------------------------
+0              -5.6       0.0003   trans/rot                                  
+1              -2.5       0.0010   trans/rot                                  
+2              -1.6       0.0005   trans/rot                                  
+3              -0.7       0.0000   trans/rot                                  
+4              -0.2       0.0000   trans/rot                                  
+5               1.1       0.0008   trans/rot                                  
+6              41.1       0.0001   trans/rot                                  
+7              53.8       0.0057   torsion      H-C-C=O torsion                H-C (CH3, alpha-carbonyl)
+8              59.5       0.0088   torsion      H-C-C=O torsion                H-C (CH3, alpha-carbonyl)
+9              73.6       0.0165   torsion      H-C-C-N torsion                H-C (CH3, alpha-carbonyl)
+10            103.7       0.0207   torsion      O=C-N-C torsion                O=C (amide)
+11            149.9       0.0036   torsion      C-C-N-C torsion                C-C (amide)
+12            177.1       0.0212   torsion      C-C-C-H torsion                C-C (CH3, methyl)
+13            212.8       0.0010   torsion      N-C-C-H torsion                N-C (CH3, methyl)
+14            226.1       0.0090   torsion      H-C-C-H torsion                H-C (CH3, methyl)
+15            298.6       0.0077   torsion      N-C-C-H torsion                N-C (CH3, methyl)
+16            320.2       0.0035   torsion      C-C-N-H torsion                C-C (amide)
+17            353.2       0.0477   mixed        C-N-C mixed                    H-O (CH3, methyl)
+18            429.9       0.0449   torsion      C-C-C-N torsion                C-C (amide)
+19            469.3       0.1222   torsion      H-N-C-C torsion                H-N (amide)
+20            492.6       0.0454   torsion      H-N-C-H torsion                H-N (amide)
+21            589.2       0.0154   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+22            631.8       0.0111   torsion      O=C-N-H torsion                O=C (amide)
+23            667.2       0.0253   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+24            698.9       0.1321   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+25            797.7       0.0023   torsion      O=C-N-H torsion                O=C (amide)
+26            873.0       0.0026   mixed        H-N-C-H mixed                  H-H (CH3, methyl)
+27            917.0       0.0033   mixed        C-C-H mixed                    H-H (CH3, methyl)
+28            983.5       0.0187   mixed        C-C mixed                      H-H (CH3, alpha-carbonyl)
+29           1014.2       0.0050   bending      C-C-H asymmetric deformation   C-C (CH3, alpha-carbonyl)
+30           1054.0       0.0206   bending      C-C-H asymmetric deformation   C-C (CH3, alpha-carbonyl)
+31           1059.1       0.0046   mixed        C-C-H mixed                    H-H (CH3, methyl)
+32           1076.1       0.0042   mixed        H-C-C-H mixed                  H-H (CH3, methyl)
+33           1156.1       0.0073   bending      N-C-H asymmetric deformation   N-C (CH3, alpha-amine)
+34           1162.9       0.0174   mixed        C-C-H mixed                    H-H (CH3, methyl)
+35           1172.3       0.0327   bending      N-C-H asymmetric deformation   N-C (CH3, alpha-amine)
+36           1195.3       0.0389   mixed        C-C-H mixed                    H-H (CH3, methyl)
+37           1275.2       0.0838   mixed        H-N-C-H mixed                  H-H (amide)
+38           1281.9       0.0621   bending      C-N-H symmetric deformation    C-N (amide)
+39           1349.0       0.0443   mixed        N-C-H mixed                    H-H (CH3, alpha-carbonyl)
+40           1364.4       0.0189   mixed        C-C-H mixed                    H-H (CH3, methyl)
+41           1386.4       0.0859   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-carbonyl)
+42           1401.1       0.0089   bending      H-C-H wagging                  H-C (CH3, methyl)
+43           1426.5       0.0257   bending      H-C-H wagging                  H-C (CH3, alpha-amine)
+44           1451.3       0.0179   mixed        H-C-H mixed                    H-H (CH3, alpha-carbonyl)
+45           1464.0       0.0083   mixed        H-C-H mixed                    H-H (CH3, methyl)
+46           1472.0       0.0755   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-carbonyl)
+47           1487.4       0.0048   mixed        H-C-H mixed                    H-H (CH3, methyl)
+48           1488.8       0.0239   mixed        H-C-H mixed                    H-H (CH3, alpha-amine)
+49           1492.8       0.0140   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-amine)
+50           1557.4       0.8957   bending      C-N-H asymmetric deformation   C-N (amide)
+51           1599.5       0.5744   bending      C-N-H asymmetric deformation   C-N (amide)
+52           1746.6       0.6417   bending      C-C-N asymmetric deformation   C-C (amide)
+53           1784.3       1.0000   mixed        C=O mixed                      C=O (amide)
+54           3042.7       0.1755   stretching   C-H symmetric stretch          C-H (CH3, alpha-amine)
+55           3061.5       0.0151   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+56           3062.2       0.0382   stretching   C-H symmetric stretch          C-H (CH3, methyl)
+57           3092.0       0.0099   stretching   C-H stretch                    C-H (CH1, alpha-carbonyl)
+58           3109.8       0.0884   stretching   C-H asymmetric stretch         C-H (CH3, alpha-amine)
+59           3142.0       0.0278   stretching   C-H asymmetric stretch         C-H (CH3, methyl)
+60           3144.7       0.0249   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+61           3155.7       0.0235   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+62           3159.0       0.0203   stretching   C-H asymmetric stretch         C-H (CH3, methyl)
+63           3159.1       0.0255   stretching   C-H symmetric stretch          C-H (CH3, alpha-amine)
+64           3542.6       0.4616   stretching   N-H stretch                    N-H (amide)
+65           3673.8       0.0749   stretching   N-H stretch                    N-H (amide)
+
+----------------------------------------------------------------------------------------------------
+DETAILED VIBRATIONAL MODE ANALYSIS
+----------------------------------------------------------------------------------------------------
+Mode   Freq (cm-1)    Intensity    Type         Label                          Functional Group
+----------------------------------------------------------------------------------------------------
+7              53.8       0.0057   torsion      H-C-C=O torsion                H-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.000  bend=0.001  torsion=0.999
+       Atoms: H(11), C(0), C(1), O(2)
+
+8              59.5       0.0088   torsion      H-C-C=O torsion                H-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.000  bend=0.001  torsion=0.999
+       Atoms: H(10), C(0), C(1), O(2)
+
+9              73.6       0.0165   torsion      H-C-C-N torsion                H-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.000  bend=0.002  torsion=0.998
+       Atoms: H(12), C(0), C(1), N(3)
+
+10            103.7       0.0207   torsion      O=C-N-C torsion                O=C (amide)
+       Scores: stretch=0.000  bend=0.003  torsion=0.997
+       Atoms: O(2), C(1), N(3), C(4)
+
+11            149.9       0.0036   torsion      C-C-N-C torsion                C-C (amide)
+       Scores: stretch=0.000  bend=0.004  torsion=0.996
+       Atoms: C(4), C(6), N(8), C(9)
+
+12            177.1       0.0212   torsion      C-C-C-H torsion                C-C (CH3, methyl)
+       Scores: stretch=0.000  bend=0.071  torsion=0.928
+       Atoms: C(6), C(4), C(5), H(16)
+
+13            212.8       0.0010   torsion      N-C-C-H torsion                N-C (CH3, methyl)
+       Scores: stretch=0.000  bend=0.010  torsion=0.990
+       Atoms: N(3), C(4), C(5), H(17)
+
+14            226.1       0.0090   torsion      H-C-C-H torsion                H-C (CH3, methyl)
+       Scores: stretch=0.000  bend=0.013  torsion=0.987
+       Atoms: H(14), C(4), C(5), H(15)
+
+15            298.6       0.0077   torsion      N-C-C-H torsion                N-C (CH3, methyl)
+       Scores: stretch=0.004  bend=0.191  torsion=0.805
+       Atoms: N(3), C(4), C(5), H(17)
+
+16            320.2       0.0035   torsion      C-C-N-H torsion                C-C (amide)
+       Scores: stretch=0.005  bend=0.106  torsion=0.889
+       Atoms: C(0), C(1), N(3), H(13)
+
+17            353.2       0.0477   mixed        C-N-C mixed                    H-O (CH3, methyl)
+       Scores: stretch=0.003  bend=0.511  torsion=0.485
+       Atoms: H(19), O(7), H(17)
+
+18            429.9       0.0449   torsion      C-C-C-N torsion                C-C (amide)
+       Scores: stretch=0.004  bend=0.299  torsion=0.697
+       Atoms: C(5), C(4), C(6), N(8)
+
+19            469.3       0.1222   torsion      H-N-C-C torsion                H-N (amide)
+       Scores: stretch=0.001  bend=0.010  torsion=0.990
+       Atoms: H(13), N(3), C(4), C(5)
+
+20            492.6       0.0454   torsion      H-N-C-H torsion                H-N (amide)
+       Scores: stretch=0.002  bend=0.042  torsion=0.956
+       Atoms: H(13), N(3), C(4), H(14)
+
+21            589.2       0.0154   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+       Scores: stretch=0.025  bend=0.230  torsion=0.745
+       Atoms: H(18), N(8), C(9), H(20)
+
+22            631.8       0.0111   torsion      O=C-N-H torsion                O=C (amide)
+       Scores: stretch=0.001  bend=0.067  torsion=0.932
+       Atoms: O(2), C(1), N(3), H(13)
+
+23            667.2       0.0253   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+       Scores: stretch=0.014  bend=0.133  torsion=0.853
+       Atoms: H(18), N(8), C(9), H(20)
+
+24            698.9       0.1321   torsion      H-N-C-H torsion                H-N (CH3, alpha-amine)
+       Scores: stretch=0.001  bend=0.010  torsion=0.989
+       Atoms: H(18), N(8), C(9), H(19)
+
+25            797.7       0.0023   torsion      O=C-N-H torsion                O=C (amide)
+       Scores: stretch=0.003  bend=0.162  torsion=0.835
+       Atoms: O(7), C(6), N(8), H(18)
+
+26            873.0       0.0026   mixed        H-N-C-H mixed                  H-H (CH3, methyl)
+       Scores: stretch=0.039  bend=0.470  torsion=0.491
+       Atoms: H(19), H(15), H(17)
+
+27            917.0       0.0033   mixed        C-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.026  bend=0.482  torsion=0.492
+       Atoms: H(16), H(17), H(14)
+
+28            983.5       0.0187   mixed        C-C mixed                      H-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.269  bend=0.484  torsion=0.247
+       Atoms: H(12), H(16), C(0)
+
+29           1014.2       0.0050   bending      C-C-H asymmetric deformation   C-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.020  bend=0.621  torsion=0.359  sub-type: asymmetric deformation
+       Atoms: C(1), C(0), H(12)
+
+30           1054.0       0.0206   bending      C-C-H asymmetric deformation   C-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.000  bend=0.628  torsion=0.372  sub-type: asymmetric deformation
+       Atoms: C(1), C(0), H(10)
+
+31           1059.1       0.0046   mixed        C-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.016  bend=0.513  torsion=0.471
+       Atoms: H(15), H(14), H(16)
+
+32           1076.1       0.0042   mixed        H-C-C-H mixed                  H-H (CH3, methyl)
+       Scores: stretch=0.153  bend=0.397  torsion=0.450
+       Atoms: H(14), H(17), H(20)
+
+33           1156.1       0.0073   bending      N-C-H asymmetric deformation   N-C (CH3, alpha-amine)
+       Scores: stretch=0.001  bend=0.664  torsion=0.336  sub-type: asymmetric deformation
+       Atoms: N(8), C(9), H(21)
+
+34           1162.9       0.0174   mixed        C-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.090  bend=0.560  torsion=0.349
+       Atoms: H(17), H(14), H(13)
+
+35           1172.3       0.0327   bending      N-C-H asymmetric deformation   N-C (CH3, alpha-amine)
+       Scores: stretch=0.035  bend=0.700  torsion=0.266  sub-type: asymmetric deformation
+       Atoms: N(8), C(9), H(19)
+
+36           1195.3       0.0389   mixed        C-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.068  bend=0.567  torsion=0.365
+       Atoms: H(14), H(16), H(15)
+
+37           1275.2       0.0838   mixed        H-N-C-H mixed                  H-H (amide)
+       Scores: stretch=0.026  bend=0.480  torsion=0.495
+       Atoms: H(14), H(18), H(13)
+
+38           1281.9       0.0621   bending      C-N-H symmetric deformation    C-N (amide)
+       Scores: stretch=0.036  bend=0.650  torsion=0.313  sub-type: symmetric deformation
+       Atoms: C(4), N(3), H(13)
+
+39           1349.0       0.0443   mixed        N-C-H mixed                    H-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.006  bend=0.409  torsion=0.584
+       Atoms: H(14), H(10), H(11)
+
+40           1364.4       0.0189   mixed        C-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.021  bend=0.388  torsion=0.590
+       Atoms: H(14), H(18), H(17)
+
+41           1386.4       0.0859   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.016  bend=0.876  torsion=0.109  sub-type: asymmetric deformation
+       Atoms: H(10), C(0), H(11)
+
+42           1401.1       0.0089   bending      H-C-H wagging                  H-C (CH3, methyl)
+       Scores: stretch=0.016  bend=0.905  torsion=0.079  sub-type: wagging
+       Atoms: H(15), C(5), H(16)
+
+43           1426.5       0.0257   bending      H-C-H wagging                  H-C (CH3, alpha-amine)
+       Scores: stretch=0.006  bend=0.905  torsion=0.089  sub-type: wagging
+       Atoms: H(19), C(9), H(20)
+
+44           1451.3       0.0179   mixed        H-C-H mixed                    H-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.000  bend=0.594  torsion=0.406
+       Atoms: H(12), H(10), H(11)
+
+45           1464.0       0.0083   mixed        H-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.001  bend=0.500  torsion=0.499
+       Atoms: H(15), H(17), H(16)
+
+46           1472.0       0.0755   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-carbonyl)
+       Scores: stretch=0.002  bend=0.622  torsion=0.376  sub-type: asymmetric deformation
+       Atoms: H(10), C(0), H(11)
+
+47           1487.4       0.0048   mixed        H-C-H mixed                    H-H (CH3, methyl)
+       Scores: stretch=0.001  bend=0.530  torsion=0.469
+       Atoms: H(16), H(17), H(20)
+
+48           1488.8       0.0239   mixed        H-C-H mixed                    H-H (CH3, alpha-amine)
+       Scores: stretch=0.001  bend=0.585  torsion=0.413
+       Atoms: H(20), H(21), H(19)
+
+49           1492.8       0.0140   bending      H-C-H asymmetric deformation   H-C (CH3, alpha-amine)
+       Scores: stretch=0.001  bend=0.606  torsion=0.393  sub-type: asymmetric deformation
+       Atoms: H(19), C(9), H(21)
+
+50           1557.4       0.8957   bending      C-N-H asymmetric deformation   C-N (amide)
+       Scores: stretch=0.068  bend=0.865  torsion=0.068  sub-type: asymmetric deformation
+       Atoms: C(4), N(3), H(13)
+
+51           1599.5       0.5744   bending      C-N-H asymmetric deformation   C-N (amide)
+       Scores: stretch=0.052  bend=0.919  torsion=0.029  sub-type: asymmetric deformation
+       Atoms: C(6), N(8), H(18)
+
+52           1746.6       0.6417   bending      C-C-N asymmetric deformation   C-C (amide)
+       Scores: stretch=0.315  bend=0.648  torsion=0.037  sub-type: asymmetric deformation
+       Atoms: C(0), C(1), N(3)
+
+53           1784.3       1.0000   mixed        C=O mixed                      C=O (amide)
+       Scores: stretch=0.334  bend=0.550  torsion=0.116
+       Atoms: C(6), O(7), H(18)
+
+54           3042.7       0.1755   stretching   C-H symmetric stretch          C-H (CH3, alpha-amine)
+       Scores: stretch=0.992  bend=0.007  torsion=0.000  sub-type: symmetric
+       Atoms: C(9), H(21)
+
+55           3061.5       0.0151   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.993  bend=0.007  torsion=0.000  sub-type: asymmetric
+       Atoms: C(0), H(12)
+
+56           3062.2       0.0382   stretching   C-H symmetric stretch          C-H (CH3, methyl)
+       Scores: stretch=0.993  bend=0.007  torsion=0.000  sub-type: symmetric
+       Atoms: C(5), H(15)
+
+57           3092.0       0.0099   stretching   C-H stretch                    C-H (CH1, alpha-carbonyl)
+       Scores: stretch=0.952  bend=0.026  torsion=0.021
+       Atoms: C(4), H(14)
+
+58           3109.8       0.0884   stretching   C-H asymmetric stretch         C-H (CH3, alpha-amine)
+       Scores: stretch=0.959  bend=0.020  torsion=0.022  sub-type: asymmetric
+       Atoms: C(9), H(20)
+
+59           3142.0       0.0278   stretching   C-H asymmetric stretch         C-H (CH3, methyl)
+       Scores: stretch=0.960  bend=0.019  torsion=0.021  sub-type: asymmetric
+       Atoms: C(5), H(17)
+
+60           3144.7       0.0249   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.965  bend=0.019  torsion=0.016  sub-type: asymmetric
+       Atoms: C(0), H(10)
+
+61           3155.7       0.0235   stretching   C-H asymmetric stretch         C-H (CH3, alpha-carbonyl)
+       Scores: stretch=0.967  bend=0.024  torsion=0.009  sub-type: asymmetric
+       Atoms: C(0), H(11)
+
+62           3159.0       0.0203   stretching   C-H asymmetric stretch         C-H (CH3, methyl)
+       Scores: stretch=0.964  bend=0.023  torsion=0.012  sub-type: asymmetric
+       Atoms: C(5), H(16)
+
+63           3159.1       0.0255   stretching   C-H symmetric stretch          C-H (CH3, alpha-amine)
+       Scores: stretch=0.966  bend=0.026  torsion=0.009  sub-type: symmetric
+       Atoms: C(9), H(19)
+
+64           3542.6       0.4616   stretching   N-H stretch                    N-H (amide)
+       Scores: stretch=0.979  bend=0.020  torsion=0.001
+       Atoms: N(8), H(18)
+
+65           3673.8       0.0749   stretching   N-H stretch                    N-H (amide)
+       Scores: stretch=0.977  bend=0.016  torsion=0.006
+       Atoms: N(3), H(13)
+
+----------------------------------------------------------------------
+TOP INTENSE MODES
+----------------------------------------------------------------------
+    1784.3 cm-1  I=1.0000  C=O mixed  [C=O (amide)]
+    1557.4 cm-1  I=0.8957  C-N-H asymmetric deformation  [C-N (amide)]
+    1746.6 cm-1  I=0.6417  C-C-N asymmetric deformation  [C-C (amide)]
+    1599.5 cm-1  I=0.5744  C-N-H asymmetric deformation  [C-N (amide)]
+    3542.6 cm-1  I=0.4616  N-H stretch  [N-H (amide)]
+    3042.7 cm-1  I=0.1755  C-H symmetric stretch  [C-H (CH3, alpha-amine)]
+     698.9 cm-1  I=0.1321  H-N-C-H torsion  [H-N (CH3, alpha-amine)]
+     469.3 cm-1  I=0.1222  H-N-C-C torsion  [H-N (amide)]
+    3109.8 cm-1  I=0.0884  C-H asymmetric stretch  [C-H (CH3, alpha-amine)]
+    1386.4 cm-1  I=0.0859  H-C-H asymmetric deformation  [H-C (CH3, alpha-carbonyl)]
+    1275.2 cm-1  I=0.0838  H-N-C-H mixed  [H-H (amide)]
+    1472.0 cm-1  I=0.0755  H-C-H asymmetric deformation  [H-C (CH3, alpha-carbonyl)]
+    3673.8 cm-1  I=0.0749  N-H stretch  [N-H (amide)]
+    1281.9 cm-1  I=0.0621  C-N-H symmetric deformation  [C-N (amide)]
+     353.2 cm-1  I=0.0477  C-N-C mixed  [H-O (CH3, methyl)]
+     492.6 cm-1  I=0.0454  H-N-C-H torsion  [H-N (amide)]
+     429.9 cm-1  I=0.0449  C-C-C-N torsion  [C-C (amide)]
+    1349.0 cm-1  I=0.0443  N-C-H mixed  [H-H (CH3, alpha-carbonyl)]
+    1195.3 cm-1  I=0.0389  C-C-H mixed  [H-H (CH3, methyl)]
+    3062.2 cm-1  I=0.0382  C-H symmetric stretch  [C-H (CH3, methyl)]
