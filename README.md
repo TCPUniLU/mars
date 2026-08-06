@@ -136,9 +136,10 @@ MARS is described in a preprint of the same title — please cite it:
 @article{mars2026,
   title   = {MARS: Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation},
   author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Tkatchenko, Alexandre},
+  journal = {ChemRxiv},
   year    = {2026},
-  note    = {Preprint},
-  url     = {https://github.com/TCPUniLU/mars}
+  doi     = {10.26434/chemrxiv.15007087},
+  note    = {Preprint}
 }
 ```
 
