@@ -33,7 +33,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
 dependencies = [
-    "jax>=0.4.20",
+    "jax>=0.4.20,<0.11",
     "jax-md>=0.2.8",
     "jaxopt>=0.8.0",
     "numpy",
