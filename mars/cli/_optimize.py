@@ -99,6 +99,25 @@ def run_optimize_workflow(args):
     parallel = not args.not_parallel
     use_batch = parallel and len(structures) > 1
 
+    # Options for the coordinate-system axis, which is orthogonal to --method.
+    ric_kwargs = dict(
+        coords=getattr(args, "coords", "cartesian"),
+        init_hessian=getattr(args, "init_hessian", None),
+        interfragment=getattr(args, "interfragment", "tric"),
+        atomic_numbers=structures[0]["numbers"],
+        frozen_indices=constraint_atoms,
+        ric_options={
+            "max_atoms": getattr(args, "ric_max_atoms", 150),
+            "backtransform_iter": getattr(args, "ric_backtransform_iter", 25),
+        },
+    )
+    if ric_kwargs["coords"] == "internal":
+        log_info(
+            f"Coordinate system: redundant internal "
+            f"(init_hessian={ric_kwargs['init_hessian'] or 'lindh'}, "
+            f"interfragment={ric_kwargs['interfragment']})"
+        )
+
     try:
         if use_batch:
             # Parallel path: optimize all structures in a single vmapped call.
@@ -107,7 +126,7 @@ def run_optimize_workflow(args):
                 f"(method={args.method}, fmax={args.fmax} eV/Å, "
                 f"maxiter={args.maxiter}, max_stepsize={args.max_stepsize})"
             )
-            ensemble, converged_flags = optimize_multilevel_jax(
+            ensemble, converged_flags, batch_info = optimize_multilevel_jax(
                 structures,
                 energy_fn,
                 fmax=args.fmax,
@@ -116,21 +135,18 @@ def run_optimize_workflow(args):
                 max_stepsize=args.max_stepsize,
                 parallel=True,
                 return_converged=True,
+                return_info=True,
                 potential_wrapper=potential_wrapper,
                 fire_dt_start=args.fire_dt_start,
                 fire_dt_max=args.fire_dt_max,
                 fire_n_min=args.fire_n_min,
+                **ric_kwargs,
             )
             for idx, ((struct_opt, energy_opt), conv) in enumerate(zip(ensemble, converged_flags)):
                 optimized_structures.append(struct_opt)
-                all_info.append(
-                    {
-                        "converged": conv,
-                        "iterations": args.maxiter,
-                        "max_force": 0.0,
-                        "grad_norm": 0.0,
-                    }
-                )
+                # Real per-structure numbers. This used to report
+                # iterations=maxiter and max_force=0 for every conformer.
+                all_info.append(batch_info[idx])
                 if not conv:
                     log_warning(
                         f"Conformer {idx} not fully converged after "
@@ -164,6 +180,7 @@ def run_optimize_workflow(args):
                     fire_dt_start=args.fire_dt_start,
                     fire_dt_max=args.fire_dt_max,
                     fire_n_min=args.fire_n_min,
+                    **{**ric_kwargs, "atomic_numbers": structure["numbers"]},
                 )
                 if info["converged"]:
                     log_info(f"  ✓ Converged in {info['iterations']} iterations")
@@ -171,6 +188,14 @@ def run_optimize_workflow(args):
                     log_info(f"  ⚠ Not converged after {info['iterations']} iterations")
                 log_info(f"  Final energy: {energy_opt * EV_TO_KCALMOL:.2f} kcal/mol")
                 log_info(f"  Max force: {info['max_force']:.3g} eV/Å")
+                if info.get("coords_used") == "internal":
+                    log_info(
+                        f"  RIC: {info.get('ric_n_internal')} internals, "
+                        f"rank {info.get('ric_rank')}/{info.get('ric_expected_rank')}, "
+                        f"{info.get('ric_fallback_steps', 0)} fallback step(s), "
+                        f"{info.get('ric_rejected_steps', 0)} rejected, "
+                        f"{info.get('ric_rebuilds', 0)} rebuild(s)"
+                    )
 
                 opt_structure = structure.copy()
                 opt_structure["positions"] = positions_opt

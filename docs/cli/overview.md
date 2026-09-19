@@ -15,7 +15,7 @@ Every subcommand prints a complete option reference with `--help`.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--potential {so3lr,mace,dxtb,nci,harmonic,lj}` | `so3lr` | Potential backend |
-| `--mace-foundation {mp,off,anicc,omol}` | `off` | MACE foundation family (with `--potential mace`) |
+| `--mace-foundation {mp,off,off24,anicc,omol}` | `off` | MACE foundation family (with `--potential mace`). `off` is MACE-OFF23; `off24` is MACE-OFF24 (medium only) |
 | `--mace-model NAME` | `small` | MACE variant (e.g. small/medium/large, medium-mpa-0) |
 | `--mace-cache-dir DIR` | `~/.cache/mars/mace_jax` | Converted JAX weight cache |
 | `--dxtb-method {gfn1,gfn2}` | `gfn1` | dxtb method |

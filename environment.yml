@@ -7,6 +7,10 @@
 # ML potentials are commented blocks below — uncomment the ones you need, or
 # install them afterwards with pip (see docs/install.md).
 #
+# Tested stack (CUDA 13 driver, Python 3.12): jax 0.10.2, flax 0.12.8,
+# orbax-checkpoint 0.12.4, mace-torch 0.3.16, mace-jax 0.2.0, so3lr(_dev) 0.2.0.
+# See docs/install.md ("Tested versions" / "Troubleshooting").
+#
 # IMPORTANT (dxtb): dxtb is PyTorch-based and historically capped numpy<2,
 # which conflicts with the JAX stack (numpy>=2). Use dxtb>=0.4 and install it
 # *after* JAX/SO3LR/MACE with `--upgrade-strategy only-if-needed`, or keep it in
@@ -23,18 +27,24 @@ dependencies:
       - -e .[viewer]
 
       # --- GPU JAX: uncomment ONE matching your CUDA driver (nvidia-smi) ----
-      # - "jax[cuda12]"
-      # - "jax[cuda13]"
+      # - "jax[cuda12]<0.11"
+      # - "jax[cuda13]<0.11"     # SO3LR needs jax<0.11
 
       # --- ML potentials: uncomment what you need --------------------------
-      # SO3LR (default): helper deps here, then install SO3LR from source:
+      # flax / orbax pins shared by SO3LR and MACE (needed on JAX >= 0.10):
+      # - "flax>=0.12,<0.12.9"
+      # - "orbax-checkpoint>=0.12"
+
+      # SO3LR (default): helper deps here, then install SO3LR from source
+      # (the developing package "so3lr_dev" adds the v2 models):
       #   git clone https://github.com/general-molecular-simulations/so3lr.git
-      #   cd so3lr && pip install .
+      #   cd so3lr && pip install .          # or: pip install /path/to/so3lr_dev
       # - ase
       # - h5py
 
-      # MACE (also: pip install mace-jax for JAX-native inference)
+      # MACE: mace-torch here, plus mace-jax (NOT on PyPI) from GitHub:
       # - mace-torch>=0.3.13
+      # - "mace-jax @ git+https://github.com/ACEsuit/mace-jax"
 
       # dxtb (install last; >=0.4 coexists with numpy>=2)
       # - "dxtb[libcint]>=0.4.0"

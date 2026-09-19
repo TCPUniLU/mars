@@ -3,7 +3,7 @@ hide:
   - toc
 ---
 
-# ![MARS](assets/logo.png){ .home-logo .off-glb }
+# ![MARS](assets/logo.svg){ .home-logo .off-glb }
 
 A JAX-native, GPU-accelerated toolkit for conformational search, IR
 spectroscopy, and explicit solvation — built on one pluggable potential layer

@@ -25,7 +25,7 @@ validation:
 
 theme:
   name: material
-  logo: assets/logo.png
+  logo: assets/logo.svg
   favicon: assets/favicon.ico
   features:
     - navigation.tabs
@@ -160,6 +160,7 @@ nav:
       - mars.solvents: api/solvents.md
       - mars.conf_sampling: api/conf_sampling.md
       - mars.optimizer: api/optimizer.md
+      - mars.internal_coords: api/internal_coords.md
       - mars.ensemble: api/ensemble.md
       - mars.rmsd: api/rmsd.md
       - mars.mtd: api/mtd.md

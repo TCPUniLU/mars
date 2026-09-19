@@ -112,6 +112,21 @@ class PotentialWrapper(ABC):
         return {}
 
     @property
+    def species(self):
+        """Atomic numbers this potential was built for, or ``None``.
+
+        Subclasses that are constructed with a ``species`` argument store it
+        and expose it here, so callers that only hold a ``PotentialWrapper``
+        (notably :func:`mars.optimizer.optimize_single`) can recover the
+        elements without threading them through separately.  Toy potentials
+        that are species-agnostic return ``None``.
+
+        Returns:
+            ``(n_atoms,)`` array-like of atomic numbers, or ``None``.
+        """
+        return getattr(self, "_species", None)
+
+    @property
     def analytical_hessian(self) -> bool:
         """Whether this potential supports analytical (AD-based) Hessians.
 
@@ -347,6 +362,153 @@ class LJPotential(PotentialWrapper):
 
 
 # ============================================================================
+# Valence Force Field (test potential with real bonded structure)
+# ============================================================================
+
+
+@register_potential("valence")
+class ValencePotential(PotentialWrapper):
+    """Minimal valence force field: harmonic bonds/angles, cosine torsions, soft LJ.
+
+    Exists because the other two test potentials cannot exercise
+    internal-coordinate machinery.  ``harmonic`` is a spring to the centroid,
+    so its minimum has every atom collapsed onto one point — every bond length
+    is zero and the internal-coordinate set is singular there — and its
+    Cartesian Hessian is exactly quadratic and isotropic, which makes *any*
+    coordinate transformation a pessimisation.  ``lj`` has no bonded terms at
+    all, so covalent-radius bond detection returns nonsense connectivity.
+
+    This potential builds its topology once from the reference geometry with
+    :func:`mars.utils.detect_bonds`, so it has a chemically sensible minimum
+    near the input structure and is cheap enough for CI.  It is a *test*
+    potential, not a parameterised force field: the constants are generic and
+    the energies are not physically meaningful.
+
+    Args:
+        species: ``(n_atoms,)`` atomic numbers.
+        positions: ``(n_atoms, 3)`` reference geometry used to derive the
+            topology and the equilibrium bond lengths / angles.
+        k_bond: Bond force constant in eV/A^2 (default 20.0).
+        k_angle: Angle force constant in eV/rad^2 (default 3.0).
+        k_torsion: Torsion barrier in eV (default 0.05).
+        epsilon: Non-bonded LJ well depth in eV (default 0.002).
+        sigma: Non-bonded LJ length in Angstrom (default 3.0).
+        tolerance: Covalent-radius tolerance for bond detection (default 1.3).
+
+    Example:
+        >>> from mars.potentials import get_potential
+        >>> pot = get_potential("valence", species=numbers, positions=positions)
+        >>> energy_fn = pot.build_energy_fn()
+    """
+
+    def __init__(
+        self,
+        species,
+        positions=None,
+        k_bond: float = 20.0,
+        k_angle: float = 3.0,
+        k_torsion: float = 0.05,
+        epsilon: float = 0.002,
+        sigma: float = 3.0,
+        tolerance: float = 1.3,
+        **kwargs,
+    ):
+        self._species = np.asarray(species, dtype=int)
+        self.k_bond = float(k_bond)
+        self.k_angle = float(k_angle)
+        self.k_torsion = float(k_torsion)
+        self.epsilon = float(epsilon)
+        self.sigma = float(sigma)
+        self.tolerance = float(tolerance)
+        self._initialized = False
+        self._topo = None
+        if positions is not None:
+            self.initialize(jnp.asarray(positions))
+
+    def initialize(self, positions: jnp.ndarray):
+        """Derive bonds/angles/torsions and their reference values."""
+        from .topology import build_bonded_lists
+
+        pos = np.asarray(positions, dtype=float)
+        bonds, angles, torsions = build_bonded_lists(pos, self._species, tolerance=self.tolerance)
+        self._topo = {
+            "bonds": jnp.asarray(bonds, dtype=jnp.int32).reshape(-1, 2),
+            "angles": jnp.asarray(angles, dtype=jnp.int32).reshape(-1, 3),
+            "torsions": jnp.asarray(torsions, dtype=jnp.int32).reshape(-1, 4),
+        }
+        # Reference values from the input geometry.
+        b = np.asarray(bonds, dtype=int).reshape(-1, 2)
+        a = np.asarray(angles, dtype=int).reshape(-1, 3)
+        self._r0 = jnp.asarray(
+            np.linalg.norm(pos[b[:, 1]] - pos[b[:, 0]], axis=-1) if len(b) else np.zeros(0)
+        )
+        if len(a):
+            u = pos[a[:, 0]] - pos[a[:, 1]]
+            v = pos[a[:, 2]] - pos[a[:, 1]]
+            u = u / np.linalg.norm(u, axis=-1, keepdims=True)
+            v = v / np.linalg.norm(v, axis=-1, keepdims=True)
+            self._theta0 = jnp.asarray(np.arccos(np.clip(np.sum(u * v, axis=-1), -1.0, 1.0)))
+        else:
+            self._theta0 = jnp.zeros(0)
+        # Non-bonded pairs: everything separated by more than 3 bonds.
+        n = len(self._species)
+        excl = np.zeros((n, n), dtype=bool)
+        for i, j in b:
+            excl[i, j] = excl[j, i] = True
+        for i, j, k in a:
+            excl[i, k] = excl[k, i] = True
+        for i, j, k, l in np.asarray(torsions, dtype=int).reshape(-1, 4):
+            excl[i, l] = excl[l, i] = True
+        iu, ju = np.triu_indices(n, k=1)
+        keep = ~excl[iu, ju]
+        self._nb_pairs = jnp.asarray(np.stack([iu[keep], ju[keep]], axis=-1), dtype=jnp.int32)
+        self._initialized = True
+
+    def _build_energy_fn(self) -> Callable:
+        if not self._initialized:
+            raise RuntimeError(
+                "Valence potential not initialized. Pass positions= or call initialize()."
+            )
+        bonds = self._topo["bonds"]
+        angles = self._topo["angles"]
+        torsions = self._topo["torsions"]
+        nb = self._nb_pairs
+        r0, theta0 = self._r0, self._theta0
+        kb, ka, kt = self.k_bond, self.k_angle, self.k_torsion
+        eps, sig = self.epsilon, self.sigma
+
+        def energy_fn(positions, **kwargs):
+            e = jnp.asarray(0.0, dtype=positions.dtype)
+            if bonds.shape[0]:
+                d = jnp.linalg.norm(positions[bonds[:, 1]] - positions[bonds[:, 0]], axis=-1)
+                e = e + kb * jnp.sum((d - r0) ** 2)
+            if angles.shape[0]:
+                u = positions[angles[:, 0]] - positions[angles[:, 1]]
+                v = positions[angles[:, 2]] - positions[angles[:, 1]]
+                u = u / jnp.linalg.norm(u, axis=-1, keepdims=True)
+                v = v / jnp.linalg.norm(v, axis=-1, keepdims=True)
+                cos = jnp.clip(jnp.sum(u * v, axis=-1), -1.0 + 1e-10, 1.0 - 1e-10)
+                e = e + ka * jnp.sum((jnp.arccos(cos) - theta0) ** 2)
+            if torsions.shape[0]:
+                b1 = positions[torsions[:, 1]] - positions[torsions[:, 0]]
+                b2 = positions[torsions[:, 2]] - positions[torsions[:, 1]]
+                b3 = positions[torsions[:, 3]] - positions[torsions[:, 2]]
+                n1 = jnp.cross(b1, b2)
+                n2 = jnp.cross(b2, b3)
+                b2n = b2 / (jnp.linalg.norm(b2, axis=-1, keepdims=True) + 1e-12)
+                m = jnp.cross(n1, b2n)
+                phi = jnp.arctan2(jnp.sum(m * n2, axis=-1), jnp.sum(n1 * n2, axis=-1))
+                e = e + kt * jnp.sum(1.0 + jnp.cos(3.0 * phi))
+            if nb.shape[0]:
+                d = jnp.linalg.norm(positions[nb[:, 1]] - positions[nb[:, 0]], axis=-1)
+                sr6 = (sig / jnp.maximum(d, 0.5)) ** 6
+                e = e + 4.0 * eps * jnp.sum(sr6**2 - sr6)
+            return e
+
+        return energy_fn
+
+
+# ============================================================================
 # SO3LR Potential
 # ============================================================================
 
@@ -368,13 +530,19 @@ class SO3LRPotential(PotentialWrapper):
     * **developing** ``so3lr`` (the ``so3lr_dev`` package, >=0.2): adds a v2
       model registry selected through the ``model`` argument:
 
-      * ``"so3lr-s"``  — v2 small.
-      * ``"so3lr-m"``  — v2 medium (recommended for production).
-      * ``"so3lr-l"``  — v2 large (5 Å short-range cutoff, 256 features).
-      * ``"so3lr_v1"`` — the legacy v1 model (default).
+      * ``"so3lr-1"``   — v1, the legacy bundled model (default).
+      * ``"so3lr-2-s"`` — v2 small.
+      * ``"so3lr-2-m"`` — v2 medium (recommended for production).
+      * ``"so3lr-2-l"`` — v2 large (5 Å short-range cutoff, 256 features).
 
       ``model`` may also be a filesystem path to a custom / fine-tuned model
       workdir, which is loaded directly.
+
+      .. deprecated::
+         The pre-release names ``"so3lr_v1"``, ``"so3lr"``, ``"so3lr-s"``,
+         ``"so3lr-m"`` and ``"so3lr-l"`` still work and resolve to the same
+         models as above, but emit a :class:`DeprecationWarning`; use the
+         ``so3lr-1`` / ``so3lr-2-s/m/l`` names in new code.
 
     The developing v2 models are still under active development; the stable
     package and the v1 model remain the safe default.
@@ -384,10 +552,10 @@ class SO3LRPotential(PotentialWrapper):
 
     Installation::
 
-        # 1. Install JAX (GPU)
-        pip install 'jax[cuda12]==0.5.3'
+        # 1. Install JAX matching your driver (GPU: cuda12 or cuda13)
+        pip install -U 'jax[cuda13]'
         # ... or CPU-only:
-        pip install jax==0.5.3
+        pip install -U jax
 
         # 2a. Stable SO3LR (v1 only)
         pip install so3lr
@@ -396,17 +564,30 @@ class SO3LRPotential(PotentialWrapper):
     """
 
     #: Map MARS-facing model names to SO3LR registry names.  Names not present
-    #: here (the ``so3lr-s/-m/-l`` variants and any custom path) pass through
-    #: unchanged to :func:`so3lr.model_registry.resolve_model`.
-    _MODEL_ALIASES = {"so3lr_v1": "so3lr"}
-    _DEFAULT_MODEL = "so3lr_v1"
+    #: here (any custom path) pass through unchanged to
+    #: :func:`so3lr.model_registry.resolve_model`.
+    _MODEL_ALIASES = {
+        # current names
+        "so3lr-1": "so3lr",
+        "so3lr-2-s": "so3lr-s",
+        "so3lr-2-m": "so3lr-m",
+        "so3lr-2-l": "so3lr-l",
+        # deprecated pre-release names, kept working -- see _DEPRECATED_MODEL_NAMES
+        "so3lr_v1": "so3lr",
+    }
+    #: Names accepted for backward compatibility that raise a DeprecationWarning.
+    #: "so3lr"/"so3lr-s"/"so3lr-m"/"so3lr-l" are also SO3LR's own registry keys
+    #: (not MARS aliases -- they pass through _MODEL_ALIASES.get() unchanged),
+    #: so they are listed here rather than in _MODEL_ALIASES.
+    _DEPRECATED_MODEL_NAMES = {"so3lr_v1", "so3lr", "so3lr-s", "so3lr-m", "so3lr-l"}
+    _DEFAULT_MODEL = "so3lr-1"
 
     def __init__(
         self,
         species,
         lr_cutoff: float = 1000.0,
         dtype=None,
-        model: str = "so3lr_v1",
+        model: str = "so3lr-1",
         charge: float = 0.0,
         capacity_multiplier: float = 1.25,
         buffer_size_multiplier_sr: float = 1.25,
@@ -419,10 +600,12 @@ class SO3LRPotential(PotentialWrapper):
             lr_cutoff: Long-range cutoff in Angstrom.
                 Use 1000 for gas-phase (no PBC), 12 for periodic systems.
             dtype: Float precision (default ``jnp.float32``).
-            model: Bundled model name (``"so3lr-s"``, ``"so3lr-m"``,
-                ``"so3lr-l"``, ``"so3lr_v1"``) or a path to a custom /
+            model: Bundled model name (``"so3lr-1"``, ``"so3lr-2-s"``,
+                ``"so3lr-2-m"``, ``"so3lr-2-l"``) or a path to a custom /
                 fine-tuned model workdir.  ``None`` uses the default
-                (``"so3lr_v1"``).
+                (``"so3lr-1"``). The pre-release names (``"so3lr_v1"``,
+                ``"so3lr"``, ``"so3lr-s"``, ``"so3lr-m"``, ``"so3lr-l"``)
+                still work but are deprecated.
             charge: Total system charge.
             capacity_multiplier: Accepted for backward compatibility; unused
                 (SO3LR v2 sizes its neighbor lists from the per-list buffer
@@ -436,13 +619,14 @@ class SO3LRPotential(PotentialWrapper):
 
             # from so3lr import to_jax_md as _to_jax_md
             from so3lr.cli.so3lr_md import to_jax_md_custom as _to_jax_md
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
-                "SO3LR is not installed. Install with:\n"
-                "  pip install 'jax[cuda12]==0.5.3'   # GPU\n"
-                "  pip install jax==0.5.3              # CPU-only\n"
-                "  pip install /path/to/so3lr         # e.g. ../so3lr_dev-main"
-            )
+                "SO3LR is not installed or failed to import. Install with:\n"
+                "  pip install -U 'jax[cuda12]'      # or jax[cuda13] / plain jax (CPU)\n"
+                "  pip install /path/to/so3lr_dev     # e.g. ../so3lr_dev-main\n"
+                "If it is installed, see the chained error above (an outdated "
+                "orbax-checkpoint or flax is the usual cause; see docs/install.md)."
+            ) from exc
 
         import jax
         from jax_md import space
@@ -462,10 +646,24 @@ class SO3LRPotential(PotentialWrapper):
             patched_kwargs.update(output_intermediate_quantities=["partial_charges"])
 
         # ---- resolve model name --------------------------------------------
-        # A bundled name (so3lr-s/-m/-l), the "so3lr_v1" alias, or a filesystem
-        # path.  The developing SO3LR package loads all of these through ``model=``.
+        # A bundled name (so3lr-1/2-s/2-m/2-l), a deprecated pre-release name,
+        # or a filesystem path.  The developing SO3LR package loads all of
+        # these through ``model=``.
         if model is None:
             model = self._DEFAULT_MODEL
+        elif model in self._DEPRECATED_MODEL_NAMES:
+            replacement = self._MODEL_ALIASES.get(model, model)
+            new_name = {
+                v: k
+                for k, v in self._MODEL_ALIASES.items()
+                if k not in self._DEPRECATED_MODEL_NAMES
+            }.get(replacement, replacement)
+            warnings.warn(
+                f"SO3LR model name {model!r} is deprecated and will be removed in a "
+                f"future release; use {new_name!r} instead (same model).",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         resolved_model = self._MODEL_ALIASES.get(model, model)
 
         # ---- detect the installed SO3LR API --------------------------------
@@ -485,12 +683,15 @@ class SO3LRPotential(PotentialWrapper):
         pot_kwargs = dict(lr_cutoff=lr_cutoff, dtype=dtype, **patched_kwargs)
         if supports_model:
             pot_kwargs["model"] = resolved_model
-        elif model not in (None, self._DEFAULT_MODEL, "so3lr"):
+        elif resolved_model != "so3lr":
+            # Compare the alias-resolved name (not the raw ``model`` string) so
+            # every v1 spelling -- so3lr-1, so3lr_v1, bare so3lr -- is silently
+            # a no-op here; only a genuine v2 request is downgraded with a warning.
             warnings.warn(
                 f"The installed SO3LR package (v{so3lr_version}) does not support "
                 f"model selection; the requested --so3lr-model {model!r} is ignored and "
                 "the bundled v1 model is used. Install the developing SO3LR package "
-                "(so3lr_dev, >=0.2) to use the so3lr-s / so3lr-m / so3lr-l v2 models.",
+                "(so3lr_dev, >=0.2) to use the so3lr-2-s / so3lr-2-m / so3lr-2-l v2 models.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -687,6 +888,10 @@ class MACEPotential(PotentialWrapper):
     Foundation families (``foundation`` argument):
 
     * ``'off'``   — MACE-OFF23, organic molecules (default).
+    * ``'off24'`` — MACE-OFF24, the 2024 organic-molecule release.  Only the
+      ``medium`` size is published upstream, so ``model`` defaults to it and
+      is resolved to the checkpoint URL; a local path or URL is passed
+      through unchanged.
     * ``'mp'``    — MACE-MP, materials-project potential.
     * ``'anicc'`` — MACE trained on ANI-cc.
     * ``'omol'``  — MACE-OMol, broad chemical space (PyTorch backend).
@@ -699,11 +904,13 @@ class MACEPotential(PotentialWrapper):
     Args:
         species: Array-like of atomic numbers, shape ``(n_atoms,)``.
         foundation: Foundation family, one of ``'mp'``, ``'off'``,
-            ``'anicc'``, ``'omol'`` (default ``'off'``).
+            ``'off24'``, ``'anicc'``, ``'omol'`` (default ``'off'``).
         model: Variant name forwarded to the foundation loader, e.g.
             ``'small'`` / ``'medium'`` / ``'large'`` for ``off``/``mp``,
             ``'medium-mpa-0'`` for ``mp``, ``'extra_large'`` for ``omol``.
-            May also be a local checkpoint path or URL.  Default ``'small'``.
+            May also be a local checkpoint path or URL.  Defaults to
+            ``'small'`` for ``off``/``mp`` and to ``'medium'`` for ``off24``,
+            the only size it publishes.
         dtype: Float precision.  Defaults to ``jnp.float32``.
         cache_dir: Directory for converted JAX weights (JAX-native backends).
             ``None`` uses ``~/.cache/mars/mace_jax``.
@@ -713,13 +920,46 @@ class MACEPotential(PotentialWrapper):
             spin-aware models (e.g. ``omol``); ignored otherwise.  Default ``1``.
     """
 
-    _VALID_FOUNDATIONS = ("mp", "off", "anicc", "omol")
+    _VALID_FOUNDATIONS = ("mp", "off", "off24", "anicc", "omol")
+
+    #: MACE-OFF24 checkpoints. Upstream publishes only the medium size, and
+    #: mace-torch has no ``mace_off24`` loader, so OFF24 is loaded through the
+    #: OFF loader with an explicit checkpoint. Keyed by size so that
+    #: ``--mace-foundation off24 --mace-model medium`` reads like the other
+    #: families instead of requiring a URL.
+    _OFF24_MODELS = {
+        "medium": (
+            "https://raw.githubusercontent.com/ACEsuit/mace-off/main/"
+            "mace_off24/MACE-OFF24_medium.model"
+        ),
+    }
+
+    @classmethod
+    def _resolve_off24(cls, model):
+        """Map an OFF24 size name to its checkpoint; pass paths/URLs through."""
+        if model is None:
+            return cls._OFF24_MODELS["medium"]
+        key = str(model).lower()
+        if key in cls._OFF24_MODELS:
+            return cls._OFF24_MODELS[key]
+        if key == "small":
+            # "small" is the CLI-wide default for --mace-model, so it reaches
+            # here whenever the user simply did not name a size. OFF24 has one
+            # size, so fall through to it rather than refusing.
+            return cls._OFF24_MODELS["medium"]
+        if key == "large":
+            raise ValueError(
+                "MACE-OFF24 'large' is not published upstream; only 'medium' "
+                "exists. Pass a local checkpoint path to use another."
+            )
+        # Already a path or URL.
+        return model
 
     def __init__(
         self,
         species,
         foundation: str = "off",
-        model: str | None = "small",
+        model: str | None = None,
         dtype=None,
         cache_dir: str | None = None,
         charge: float = 0.0,
@@ -732,6 +972,15 @@ class MACEPotential(PotentialWrapper):
                 f"Unknown MACE foundation '{foundation}'. "
                 f"Choose from: {', '.join(self._VALID_FOUNDATIONS)}"
             )
+
+        # Per-family default size. OFF24 publishes only ``medium``, so an
+        # unspecified model resolves there rather than to the ``small`` that
+        # every other family defaults to; the size name is turned into the
+        # checkpoint here, before it reaches the cache key or the OFF loader.
+        if foundation == "off24":
+            model = self._resolve_off24(model)
+        elif model is None and foundation in ("off", "mp"):
+            model = "small"
 
         if dtype is None:
             dtype = jnp.float32
@@ -836,6 +1085,27 @@ class MACEPotential(PotentialWrapper):
 
         SegmentedPolynomial.__eq__ = _safe_eq
 
+    @staticmethod
+    def _model_slug(model) -> str:
+        """Filesystem-safe cache token for a model name, path or URL.
+
+        ``model`` may be a bare size (``"medium"``), a local checkpoint path or
+        an https URL. Using it verbatim would put separators into the cache
+        key and scatter the cache across nested directories, so keep the
+        basename and hash the full value to keep distinct checkpoints distinct.
+        """
+        import hashlib
+
+        if model is None:
+            return "default"
+        text = str(model)
+        if "/" not in text and "\\" not in text:
+            return text
+        stem = text.rstrip("/").rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        stem = "".join(c if c.isalnum() or c in "-._" else "_" for c in stem)[:48]
+        digest = hashlib.sha1(text.encode()).hexdigest()[:8]
+        return f"{stem}-{digest}" if stem else digest
+
     def _load_or_convert(self, foundation, model, dtype, cache_dir):
         """Load converted JAX weights from cache, or convert from torch once.
 
@@ -849,7 +1119,7 @@ class MACEPotential(PotentialWrapper):
 
         x64 = bool(jax.config.jax_enable_x64)
         dtype_str = "float64" if x64 else "float32"
-        cache_key = f"{foundation}-{model or 'default'}-{'f64' if x64 else 'f32'}"
+        cache_key = f"{foundation}-{self._model_slug(model)}-{'f64' if x64 else 'f32'}"
         base = Path(cache_dir).expanduser() if cache_dir else self._default_cache_dir()
         cache_path = base / cache_key
         config_file = cache_path / "config.json"
@@ -902,8 +1172,11 @@ class MACEPotential(PotentialWrapper):
             self._patch_cuequivariance()
 
             try:
+                # mace-torch ships no ``mace_off24`` loader; OFF24 is the OFF
+                # loader pointed at the OFF24 checkpoint (resolved in __init__).
+                source = "off" if foundation == "off24" else foundation
                 torch_model = load_foundation_torch_model(
-                    source=foundation,
+                    source=source,
                     model=model,
                     device="cpu",
                     default_dtype=dtype_str,
@@ -915,7 +1188,7 @@ class MACEPotential(PotentialWrapper):
                 if "default_dtype" not in str(exc):
                     raise
                 torch_model = load_foundation_torch_model(
-                    source=foundation,
+                    source=source,
                     model=model,
                     device="cpu",
                 )

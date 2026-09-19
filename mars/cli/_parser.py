@@ -25,14 +25,14 @@ SUBCOMMANDS
   viewer      Interactive 3D viewer — molecule, IR results, or NCI wall
 
 COMMON OPTIONS (available on every subcommand)
-  --potential {so3lr,mace,dxtb,nci,harmonic,lj}
+  --potential {so3lr,mace,dxtb,nci,harmonic,lj,valence}
                     Potential to use (default: so3lr)
-  --mace-foundation {mp,off,anicc,omol} · --mace-model NAME
+  --mace-foundation {mp,off,off24,anicc,omol} · --mace-model NAME
                     MACE selector  (only with --potential mace)
   --dxtb-method {gfn1,gfn2}
                     dxtb method    (only with --potential dxtb)
   --so3lr-model NAME|PATH · --lr-cutoff Å
-                    SO3LR model (so3lr-s/-m/-l/so3lr_v1 or path) and long-range cutoff
+                    SO3LR model (so3lr-1/2-s/2-m/2-l or path) and long-range cutoff
   --charge Q        Total molecular charge (default: 0.0)
   --float64         Use 64-bit precision (default: 32-bit; auto-promoted for IR)
   --cpu             Force CPU execution
@@ -134,7 +134,7 @@ EXAMPLES
   mars viewer complex.xyz --nci --nci-buffer 5.0          # preview NCI wall
 
   # Switching potentials
-  mars input.xyz --potential so3lr --so3lr-model so3lr-l   # SO3LR v2 large
+  mars input.xyz --potential so3lr --so3lr-model so3lr-2-l # SO3LR v2 large
   mars input.xyz --potential mace --mace-foundation off --mace-model small
   mars input.xyz --potential dxtb --dxtb-method gfn2
   mars optimize input.xyz --potential harmonic            # toy potential (tests)
@@ -252,14 +252,15 @@ Examples:
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
     )
     ir_parser.add_argument(
         "--mace-foundation",
         type=str,
         default="off",
-        choices=["mp", "off", "anicc", "omol"],
-        help="MACE foundation family: off (default), mp, anicc, omol",
+        choices=["mp", "off", "off24", "anicc", "omol"],
+        help="MACE foundation family: off (MACE-OFF23, default), off24 "
+        "(MACE-OFF24, medium only), mp, anicc, omol",
     )
     ir_parser.add_argument(
         "--mace-model",
@@ -307,8 +308,10 @@ Examples:
     ir_parser.add_argument(
         "--so3lr-model",
         type=str,
-        default="so3lr_v1",
-        help="SO3LR model: so3lr-s | so3lr-m | so3lr-l | so3lr_v1, or a path to a custom/fine-tuned model (default: so3lr_v1)",
+        default="so3lr-1",
+        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
+        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
     )
     ir_parser.add_argument(
         "--lr-cutoff",
@@ -638,6 +641,58 @@ Examples:
         help="FIRE minimum positive-power steps before dt increase (default: 2)",
     )
 
+    # ------------------------------------------------------------------
+    # Coordinate system (opt-in; Cartesian remains the default)
+    # ------------------------------------------------------------------
+    ric_group = opt_parser.add_argument_group("Coordinate System (RIC)")
+    ric_group.add_argument(
+        "--coords",
+        type=str,
+        default="cartesian",
+        choices=["cartesian", "internal"],
+        help="Coordinate system for the minimizer. 'cartesian' (default) keeps the "
+        "existing LBFGS/FIRE/GD behaviour; 'internal' runs an RFO/BFGS stepper in "
+        "redundant internal coordinates (bonds, angles, torsions, out-of-plane, plus "
+        "TRIC rigid-body coordinates for multi-fragment systems). REQUIRES --float64: "
+        "in float32 the back-transformation is too noisy to converge and fails "
+        "silently, so 'internal' without --float64 is refused with an error.",
+    )
+    ric_group.add_argument(
+        "--init-hessian",
+        type=str,
+        default=None,
+        choices=["identity", "lindh"],
+        help="Initial Hessian model. Applies to both coordinate systems: giving it "
+        "with --coords cartesian runs the same RFO/BFGS stepper in Cartesians, which "
+        "is what makes a coordinate-system comparison controlled. Default: the "
+        "existing LBFGS path for --coords cartesian, 'lindh' (the chemically "
+        "informed Lindh 1995 model) for --coords internal.",
+    )
+    ric_group.add_argument(
+        "--interfragment",
+        type=str,
+        default="tric",
+        choices=["tric", "aux", "hbond", "none"],
+        help="How disconnected fragments are coupled in internal coordinates. "
+        "'tric' (default) adds 3 translation + up to 3 rotation coordinates per "
+        "fragment, the only scheme whose coordinate count stays O(N) for many "
+        "fragments; 'aux' adds Baker auxiliary stretches, adequate for a dimer.",
+    )
+    ric_group.add_argument(
+        "--ric-max-atoms",
+        type=int,
+        default=150,
+        help="Above this atom count internal coordinates are refused, because the "
+        "O(n_internal^3) linear algebra starts to dominate the potential (default: 150)",
+    )
+    ric_group.add_argument(
+        "--ric-backtransform-iter",
+        type=int,
+        default=25,
+        help="Maximum Pulay back-transformation micro-iterations (default: 25; "
+        "typical need is 3-8)",
+    )
+
     # General optimization parameters
     opt_gen_group = opt_parser.add_argument_group("General Optimization Parameters")
     opt_gen_group.add_argument(
@@ -668,14 +723,15 @@ Examples:
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
     )
     opt_pot_group.add_argument(
         "--mace-foundation",
         type=str,
         default="off",
-        choices=["mp", "off", "anicc", "omol"],
-        help="MACE foundation family: off (default), mp, anicc, omol",
+        choices=["mp", "off", "off24", "anicc", "omol"],
+        help="MACE foundation family: off (MACE-OFF23, default), off24 "
+        "(MACE-OFF24, medium only), mp, anicc, omol",
     )
     opt_pot_group.add_argument(
         "--mace-model",
@@ -709,8 +765,10 @@ Examples:
     opt_pot_group.add_argument(
         "--so3lr-model",
         type=str,
-        default="so3lr_v1",
-        help="SO3LR model: so3lr-s | so3lr-m | so3lr-l | so3lr_v1, or a path to a custom/fine-tuned model (default: so3lr_v1)",
+        default="so3lr-1",
+        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
+        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
     )
     opt_pot_group.add_argument(
         "--lr-cutoff",
@@ -1048,7 +1106,7 @@ def _add_conformer_search_arguments(parser):
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
     )
 
     # MACE-specific options
@@ -1057,8 +1115,9 @@ def _add_conformer_search_arguments(parser):
         "--mace-foundation",
         type=str,
         default="off",
-        choices=["mp", "off", "anicc", "omol"],
-        help="MACE foundation family: off (default), mp, anicc, omol",
+        choices=["mp", "off", "off24", "anicc", "omol"],
+        help="MACE foundation family: off (MACE-OFF23, default), off24 "
+        "(MACE-OFF24, medium only), mp, anicc, omol",
     )
     mace_group.add_argument(
         "--mace-model",
@@ -1095,8 +1154,10 @@ def _add_conformer_search_arguments(parser):
     so3lr_group.add_argument(
         "--so3lr-model",
         type=str,
-        default="so3lr_v1",
-        help="SO3LR model: so3lr-s | so3lr-m | so3lr-l | so3lr_v1, or a path to a custom/fine-tuned model (default: so3lr_v1)",
+        default="so3lr-1",
+        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
+        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
     )
     so3lr_group.add_argument(
         "--lr-cutoff",
@@ -1464,8 +1525,10 @@ Examples:
     pot_group.add_argument(
         "--so3lr-model",
         type=str,
-        default="so3lr_v1",
-        help="SO3LR model: so3lr-s | so3lr-m | so3lr-l | so3lr_v1, or a path to a custom/fine-tuned model (default: so3lr_v1)",
+        default="so3lr-1",
+        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
+        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
     )
     pot_group.add_argument(
         "--lr-cutoff",
@@ -1477,8 +1540,9 @@ Examples:
         "--mace-foundation",
         type=str,
         default="off",
-        choices=["mp", "off", "anicc", "omol"],
-        help="MACE foundation family: off (default), mp, anicc, omol",
+        choices=["mp", "off", "off24", "anicc", "omol"],
+        help="MACE foundation family: off (MACE-OFF23, default), off24 "
+        "(MACE-OFF24, medium only), mp, anicc, omol",
     )
     pot_group.add_argument(
         "--mace-model",

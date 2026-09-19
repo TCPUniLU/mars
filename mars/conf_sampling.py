@@ -87,6 +87,35 @@ def _prune_energy_window_guarded(
     return pruned
 
 
+def _ric_kwargs(
+    coords, coords_coarse, init_hessian, interfragment, ric_options, numbers, cycle=None
+):
+    """Coordinate-system kwargs for one optimizer call in the ladder.
+
+    Cycles 1-2 use *coords_coarse* (Cartesian by default).  They run on
+    clashed metadynamics or genetic-crossing snapshots with 1.0 A / 0.5 A step
+    caps and 10 / 100 iterations: a topology detected from such a geometry
+    invents spurious bonds, a 1 A cap is ~30 degrees on a dihedral and far
+    outside the back-transformation's local linearisation, and ten iterations
+    cannot amortise the model-Hessian build.  Those cycles also never discard
+    non-converged structures -- only the final one does -- so their job is
+    just to get roughly downhill cheaply, which Cartesian already does
+    clash-robustly.
+
+    No coordinate spec is cached across cycles on purpose: letting each call
+    rebuild from the *current* geometries is what makes the final cycle use a
+    topology derived from the relaxed structure rather than the raw snapshot.
+    """
+    use = coords if (cycle is None or cycle >= 3) else coords_coarse
+    return dict(
+        coords=use,
+        atomic_numbers=numbers,
+        init_hessian=init_hessian,
+        interfragment=interfragment,
+        ric_options=ric_options,
+    )
+
+
 def run_conformer_search_jax(
     initial_structure: Dict,
     energy_fn: Callable,
@@ -121,6 +150,11 @@ def run_conformer_search_jax(
     final_maxiter: Optional[int] = None,
     final_max_stepsize: Optional[float] = None,
     output_file: str = "auto_final_ensemble.xyz",
+    coords: str = "cartesian",
+    coords_coarse: str = "cartesian",
+    init_hessian: Optional[str] = None,
+    interfragment: str = "tric",
+    ric_options: Optional[Dict] = None,
 ) -> List[Tuple[Dict, float]]:
     """Run Conformer MTD conformational search with automatic configuration.
 
@@ -226,6 +260,11 @@ def run_mtd_only(
     final_maxiter: Optional[int] = None,
     final_max_stepsize: Optional[float] = None,
     output_file: str = "auto_final_ensemble.xyz",
+    coords: str = "cartesian",
+    coords_coarse: str = "cartesian",
+    init_hessian: Optional[str] = None,
+    interfragment: str = "tric",
+    ric_options: Optional[Dict] = None,
 ) -> List[Tuple[Dict, float]]:
     """Conformer MTD sampling only (no rotamer MD or genetic crossing).
 
@@ -313,6 +352,11 @@ def run_md_only(
     final_maxiter: Optional[int] = None,
     final_max_stepsize: Optional[float] = None,
     output_file: str = "auto_final_ensemble.xyz",
+    coords: str = "cartesian",
+    coords_coarse: str = "cartesian",
+    init_hessian: Optional[str] = None,
+    interfragment: str = "tric",
+    ric_options: Optional[Dict] = None,
 ) -> List[Tuple[Dict, float]]:
     """Simplified workflow: plain MD sampling only (no metadynamics, rotamer MD, or genetic crossing).
 
@@ -412,7 +456,6 @@ def run_md_only(
         energy_fn,
         fmax=fmax,
         structure_id="initial",
-        mass=atomic_masses,
         potential_wrapper=potential_wrapper,
         fire_dt_start=fire_dt_start,
         fire_dt_max=fire_dt_max,
@@ -420,6 +463,14 @@ def run_md_only(
         method=method,
         maxiter=md_opt_maxiter,
         max_stepsize=md_opt_max_step,
+        **_ric_kwargs(
+            coords,
+            coords_coarse,
+            init_hessian,
+            interfragment,
+            ric_options,
+            initial_structure["numbers"],
+        ),
     )
     timer_end("Initial Optimization")
 
@@ -501,6 +552,14 @@ def run_md_only(
         fire_dt_max=fire_dt_max,
         fire_n_min=fire_n_min,
         method=method,
+        **_ric_kwargs(
+            coords,
+            coords_coarse,
+            init_hessian,
+            interfragment,
+            ric_options,
+            initial_structure["numbers"],
+        ),
     )
 
     # Sort by energy
@@ -580,6 +639,11 @@ def run_conformer_search_auto(
     final_maxiter: Optional[int] = None,
     final_max_stepsize: Optional[float] = None,
     output_file: str = "auto_final_ensemble.xyz",
+    coords: str = "cartesian",
+    coords_coarse: str = "cartesian",
+    init_hessian: Optional[str] = None,
+    interfragment: str = "tric",
+    ric_options: Optional[Dict] = None,
 ) -> List[Tuple[Dict, float]]:
     """Run multi-step metadynamics with automatic parameter configuration.
 
@@ -854,6 +918,14 @@ def run_conformer_search_auto(
         fire_dt_max=fire_dt_max,
         fire_n_min=fire_n_min,
         method=method,
+        **_ric_kwargs(
+            coords,
+            coords_coarse,
+            init_hessian,
+            interfragment,
+            ric_options,
+            initial_structure["numbers"],
+        ),
     )
     timer_end("Initial Optimization")
 
@@ -1045,6 +1117,15 @@ def run_conformer_search_auto(
             fire_dt_max=fire_dt_max,
             fire_n_min=fire_n_min,
             method=method,
+            **_ric_kwargs(
+                coords,
+                coords_coarse,
+                init_hessian,
+                interfragment,
+                ric_options,
+                initial_structure["numbers"],
+                cycle_i,
+            ),
         )
         if is_last_cycle:
             n_nc = sum(1 for c in converged_flags if not c)
@@ -1279,6 +1360,15 @@ def run_conformer_search_auto(
                 fire_dt_max=fire_dt_max,
                 fire_n_min=fire_n_min,
                 method=method,
+                **_ric_kwargs(
+                    coords,
+                    coords_coarse,
+                    init_hessian,
+                    interfragment,
+                    ric_options,
+                    initial_structure["numbers"],
+                    cycle_i,
+                ),
             )
             if is_last_cycle:
                 n_nc = sum(1 for c in converged_flags if not c)
@@ -1459,6 +1549,15 @@ def run_conformer_search_auto(
                 fire_dt_max=fire_dt_max,
                 fire_n_min=fire_n_min,
                 method=method,
+                **_ric_kwargs(
+                    coords,
+                    coords_coarse,
+                    init_hessian,
+                    interfragment,
+                    ric_options,
+                    initial_structure["numbers"],
+                    cycle_i,
+                ),
             )
             if is_last_cycle:
                 n_nc = sum(1 for c in converged_flags if not c)
@@ -1607,6 +1706,15 @@ def run_conformer_search_auto(
                 fire_dt_max=fire_dt_max,
                 fire_n_min=fire_n_min,
                 method=method,
+                **_ric_kwargs(
+                    coords,
+                    coords_coarse,
+                    init_hessian,
+                    interfragment,
+                    ric_options,
+                    initial_structure["numbers"],
+                    cycle_i,
+                ),
             )
             if is_last_cycle:
                 n_nc = sum(1 for c in converged_flags if not c)

@@ -33,18 +33,30 @@ A ready-made conda file is provided — see [Conda environment file](#conda-envi
 
 ## 2. Install JAX (pick one)
 
-Recent JAX (≥ 0.4.26, currently 0.10) **requires NumPy ≥ 2**. Choose the wheel
+Recent JAX (≥ 0.4.26; 0.10.x is the tested line) **requires NumPy ≥ 2**. Choose the wheel
 that matches your CUDA driver:
 
 ```bash
-pip install -U "jax[cuda12]"      # NVIDIA GPU, CUDA 12.x   (most common)
-pip install -U "jax[cuda13]"      # NVIDIA GPU, CUDA 13.x
-pip install -U "jax"              # CPU only  (works, but not recommended)
+pip install -U "jax[cuda12]<0.11"   # NVIDIA GPU, CUDA 12.x   (most common)
+pip install -U "jax[cuda13]<0.11"   # NVIDIA GPU, CUDA 13.x
+pip install -U "jax<0.11"           # CPU only  (works, but not recommended)
 ```
+
+!!! warning "Keep JAX below 0.11"
+    SO3LR requires `jax<0.11` (JAX 0.11.1 has an XLA:CPU regression that hangs
+    its mesh scatter). Install JAX **with the bound**: if you install an
+    unbounded `jax[cuda13]` (0.11.x) first and SO3LR afterwards, pip downgrades
+    `jax`/`jaxlib` but can leave the CUDA plugin wheels on 0.11 — a version
+    mismatch that breaks GPU support. The `[so3lr]`, `[cuda12]` and `[cuda13]`
+    extras carry this bound.
 
 - Check your driver with `nvidia-smi` (top-right shows the max CUDA version).
 - The CUDA wheels bundle the needed CUDA libraries — you do **not** need a
   system CUDA toolkit, only a recent NVIDIA driver.
+- A CUDA 13 driver works with `jax[cuda13]` for SO3LR *and* MACE; there is no
+  need to fall back to CUDA 12 or install an adapter. `mace-torch` pulls in its
+  own PyTorch CUDA wheels, which coexist with the JAX ones in the same
+  environment.
 - CPU-only JAX runs everything correctly but is **much** slower; fine for the
   viewer, small molecules, and testing. Force CPU at runtime any time with
   `JAX_PLATFORMS=cpu`.
@@ -98,26 +110,38 @@ cd so3lr && pip install . && cd ..
   Install it in place of the stable one (a separate environment is convenient):
 
     ```bash
-    pip install /path/to/so3lr_dev    # e.g. ../so3lr_dev-main
+    pip install -U "orbax-checkpoint>=0.12"   # older orbax breaks on JAX >= 0.10
+    pip install /path/to/so3lr_dev            # e.g. ../so3lr_dev-main
     ```
 
+    `so3lr_dev` pins `flax<0.12.9`; the `[so3lr]` extra above already carries
+    the matching `flax` and `orbax-checkpoint` constraints.
+
 With the developing package, select a bundled v2 model with `--so3lr-model`:
-`so3lr-s` (small), `so3lr-m` (medium), `so3lr-l` (large), or `so3lr_v1` (legacy
-v1, **default**). A filesystem path to a custom / fine-tuned model workdir also
-works. The v2 models are still under active development, so the v1 default
-remains the safe choice for production.
+`so3lr-2-s` (small), `so3lr-2-m` (medium), `so3lr-2-l` (large), or `so3lr-1`
+(legacy v1, **default**). A filesystem path to a custom / fine-tuned model
+workdir also works. The v2 models are still under active development, so the
+v1 default remains the safe choice for production. The pre-release names
+(`so3lr_v1`, `so3lr`, `so3lr-s`, `so3lr-m`, `so3lr-l`) still work but are
+deprecated.
 
 ### MACE
 
 ```bash
-pip install -e ".[mace]"           # mace-torch
-pip install mace-jax               # JAX-native inference (recommended)
+pip install -e ".[mace]"                              # mace-torch + compatible flax
+pip install "git+https://github.com/ACEsuit/mace-jax"  # JAX-native inference (required)
 ```
+
+!!! note "`mace-jax` is not on PyPI"
+    `pip install mace-jax` fails with *No matching distribution*; install it
+    from GitHub as above. It needs **flax ≥ 0.12** (the `[mace]` extra pins
+    `flax>=0.12,<0.12.9`, which is also what SO3LR accepts, so both potentials
+    share one environment).
 
 MACE runs **JAX-native**: a pretrained foundation model is converted from its
 PyTorch checkpoint once (PyTorch is only needed for that first conversion) and
 cached under `~/.cache/mars/mace_jax`; later runs reload the JAX weights
-directly. Select the family/size with `--mace-foundation {off,mp,anicc,omol}`
+directly. Select the family/size with `--mace-foundation {off,off24,mp,anicc,omol}`
 and `--mace-model`. MACE does not expose partial charges, so use SO3LR or dxtb
 for IR intensities.
 
@@ -153,7 +177,7 @@ This is the one combination that needs care.
 
     ```bash
     pip install "dxtb[libcint]>=0.4.0"
-    pip install -U "jax[cuda12]"
+    pip install -U "jax[cuda12]<0.11"
     pip install -e ".[so3lr]"     # + the so3lr source install above
     ```
 
@@ -187,8 +211,9 @@ This is the one combination that needs care.
 
 ```bash
 pip install -e ".[all]"            # viewer + mace + dxtb + so3lr helpers
-# then add the GPU wheel and the SO3LR source install:
-pip install -U "jax[cuda12]"
+# then add the GPU wheel, mace-jax, and the SO3LR source install:
+pip install -U "jax[cuda12]<0.11"  # or jax[cuda13]<0.11
+pip install "git+https://github.com/ACEsuit/mace-jax"
 git clone https://github.com/general-molecular-simulations/so3lr.git
 cd so3lr && pip install . && cd ..
 ```
@@ -196,11 +221,11 @@ cd so3lr && pip install . && cd ..
 | Extra | Pulls in |
 |-------|----------|
 | `[viewer]` | matplotlib (3D viewer / plots) |
-| `[cuda12]` / `[cuda13]` | `jax[cuda12]` / `jax[cuda13]` |
-| `[so3lr]` | ase, h5py (SO3LR itself is a source install) |
-| `[mace]` | mace-torch (`pip install mace-jax` for JAX inference) |
+| `[cuda12]` / `[cuda13]` | `jax[cuda12]<0.11` / `jax[cuda13]<0.11` |
+| `[so3lr]` | ase, h5py, `jax<0.11`, `flax<0.12.9`, `orbax-checkpoint>=0.12` (SO3LR itself is a source install) |
+| `[mace]` | mace-torch, `flax>=0.12,<0.12.9` (`mace-jax` is a separate GitHub install) |
 | `[dxtb]` | `dxtb[libcint]>=0.4` |
-| `[all]` | viewer + so3lr helpers + mace + dxtb |
+| `[all]` | viewer + so3lr helpers + mace + dxtb (still add `mace-jax` and the SO3LR source install) |
 | `[dev]` | pytest, ruff, black |
 | `[docs]` | mkdocs-material, mkdocstrings, glightbox |
 
@@ -213,7 +238,7 @@ individual potentials are commented blocks you uncomment:
 ```bash
 conda env create -f environment.yml
 conda activate mars
-# GPU + SO3LR source install as above
+# then, inside the env: GPU wheel, mace-jax and the SO3LR source install as above
 ```
 
 ---
@@ -226,6 +251,46 @@ matches the SO3LR / MACE-JAX wheels best).
 ## Verifying the install
 
 ```bash
-# tests that need no ML-potential weights (~290 tests, ~2 min on CPU)
+# tests that need no ML-potential weights (~430 tests, ~5 min)
 pytest -m "not requires_so3lr and not requires_mace and not requires_dxtb"
+
+# full suite, including the SO3LR tests (needs SO3LR installed; ~440 tests)
+pytest
 ```
+
+A quick end-to-end check of each potential you installed (writes a tiny
+`water.xyz` and optimizes it):
+
+```bash
+printf '3\nwater\nO 0 0 0\nH 0.76 0.59 0\nH -0.76 0.59 0\n' > water.xyz
+mars optimize water.xyz --potential so3lr
+mars optimize water.xyz --potential mace --mace-foundation off --mace-model small
+python -c "import jax; print(jax.devices())"     # should list a CudaDevice on GPU
+```
+
+The first MACE run downloads the foundation model and converts it to JAX
+(needs internet); later runs reuse `~/.cache/mars/mace_jax`.
+
+## Tested versions
+
+The SO3LR (`so3lr_dev` 0.2.0) + MACE combination was verified on Linux with an
+NVIDIA driver reporting CUDA 13.0, Python 3.12:
+
+| Package | Version |
+|---------|---------|
+| `jax` / `jaxlib` / `jax-cuda13-plugin` | 0.10.2 |
+| `flax` | 0.12.8 |
+| `orbax-checkpoint` | 0.12.4 |
+| `numpy` | 2.5 |
+| `mace-torch` / `mace-jax` | 0.3.16 / 0.2.0 (GitHub) |
+| `torch` | 2.14 (`+cu130`) |
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `SO3LR is not installed or failed to import` with a chained `AttributeError: ... has no attribute 'DeviceLocalLayout'` | `orbax-checkpoint` older than 0.12 with JAX ≥ 0.10. `pip install -U "orbax-checkpoint>=0.12"`. |
+| `module 'flax.nnx' has no attribute 'List'` (MACE) | flax older than 0.12. `pip install "flax>=0.12,<0.12.9"`. |
+| `pip install mace-jax`: *No matching distribution* | Not on PyPI. `pip install "git+https://github.com/ACEsuit/mace-jax"`. |
+| JAX falls back to CPU (`[CpuDevice(id=0)]`) | The matching `jax[cuda12]`/`jax[cuda13]` wheel is missing, or `JAX_PLATFORMS=cpu` is set. |
+| `No matching distribution` / NumPy downgrade while installing dxtb | See [Dependency conflicts](#dependency-conflicts-dxtb-vs-the-jax-stack). |

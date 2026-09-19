@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mars"
-version = "0.1.0"
+version = "0.1.1"
 description = "MARS — Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -44,9 +44,11 @@ dependencies = [
 [project.optional-dependencies]
 # --- JAX hardware backends (pick one matching your CUDA driver) ------------
 # CPU-only JAX comes from the base `jax` dependency above — no extra needed.
-cuda12 = ["jax[cuda12]"]
-cuda13 = ["jax[cuda13]"]
-gpu = ["jax[cuda12]"]            # back-compat alias for cuda12
+# jax<0.11: so3lr requires it (jax 0.11.1 has an XLA:CPU regression), and it keeps the
+# jax / jaxlib / CUDA-plugin wheels on one consistent version.
+cuda12 = ["jax[cuda12]<0.11"]
+cuda13 = ["jax[cuda13]<0.11"]
+gpu = ["jax[cuda12]<0.11"]       # back-compat alias for cuda12
 
 # --- 3D viewer / plots (no JAX needed) -------------------------------------
 viewer = ["matplotlib>=3.5"]
@@ -55,20 +57,28 @@ viewer = ["matplotlib>=3.5"]
 # SO3LR: helper deps only. SO3LR itself is a source install:
 #   git clone https://github.com/general-molecular-simulations/so3lr.git
 #   cd so3lr && pip install .
-so3lr = ["ase", "h5py"]
-# MACE: JAX-native inference; also `pip install mace-jax` (PyTorch only needed
-# to convert a foundation checkpoint once).
-mace = ["mace-torch>=0.3.13"]
+# flax<0.12.9 is so3lr's own pin; orbax-checkpoint>=0.12 is required on JAX>=0.10
+# (older orbax fails at import with "no attribute 'DeviceLocalLayout'").
+so3lr = ["ase", "h5py", "jax<0.11", "flax<0.12.9", "orbax-checkpoint>=0.12"]
+# MACE: JAX-native inference also needs mace-jax, which is NOT on PyPI:
+#   pip install "git+https://github.com/ACEsuit/mace-jax"
+# (PyTorch is only needed to convert a foundation checkpoint once). mace-jax
+# requires flax>=0.12 (nnx.List); the upper bound matches so3lr so both coexist.
+mace = ["mace-torch>=0.3.13", "flax>=0.12,<0.12.9"]
 # dxtb: PyTorch-based GFN-xTB. Use >=0.4 so it allows numpy>=2 and coexists
 # with the JAX stack (see docs/install.md "Dependency conflicts").
 dxtb = ["dxtb[libcint]>=0.4.0"]
 
-# Everything pip-installable at once (SO3LR still needs its source install,
-# and the GPU wheel is chosen separately via [cuda12]/[cuda13]).
+# Everything pip-installable at once (SO3LR and mace-jax still need their
+# source/GitHub installs, and the GPU wheel is chosen separately via
+# [cuda12]/[cuda13]).
 all = [
     "matplotlib>=3.5",
     "ase",
     "h5py",
+    "jax<0.11",
+    "flax>=0.12,<0.12.9",
+    "orbax-checkpoint>=0.12",
     "mace-torch>=0.3.13",
     "dxtb[libcint]>=0.4.0",
 ]

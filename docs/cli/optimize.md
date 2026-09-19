@@ -54,3 +54,20 @@ mars optimize ensemble.xyz --all-conformers
 mars optimize ensemble.xyz --all-conformers --not-parallel
 mars optimize input.xyz --config opt.toml
 ```
+
+## Coordinate system
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--coords {cartesian,internal}` | `cartesian` | Coordinate system for the minimizer |
+| `--init-hessian {identity,lindh}` | *(off)* | Initial Hessian model; works in either coordinate system |
+| `--interfragment {tric,aux,hbond,none}` | `tric` | How disconnected fragments are coupled |
+| `--ric-max-atoms N` | `150` | Above this, internal coordinates are refused |
+| `--ric-backtransform-iter N` | `25` | Pulay back-transformation micro-iteration cap |
+
+**`--coords internal` requires `--float64`** and exits with an error without
+it. It is an add-on to `mars optimize` only — the conformational-search CLI
+does not expose it. It converges in far fewer steps than L-BFGS, but each
+step is correspondingly more expensive, so there is no net gain and L-BFGS
+remains the default. See the
+[optimization guide](../guide/optimization.md).

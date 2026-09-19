@@ -48,6 +48,102 @@ MARS is described in a preprint of the same title; please cite it:
   year    = {2025},
   doi     = {10.1021/acs.jcim.5c01317}
 }
+
+% Initial Hessian model used by --init-hessian lindh (mars/utils.py).
+% Cite Lindh et al. if you use the chemically informed initial Hessian.
+@article{Lindh1995,
+  author  = {Lindh, Roland and Bernhardsson, Anders and Karlstr{\"o}m, Gunnar and Malmqvist, Per-{\AA}ke},
+  title   = {On the use of a {H}essian model function in molecular geometry optimizations},
+  journal = {Chemical Physics Letters},
+  volume  = {241},
+  number  = {4},
+  pages   = {423--428},
+  year    = {1995},
+  doi     = {10.1016/0009-2614(95)00646-L}
+}
+
+% The two bonded-topology model Hessians that Lindh's is compared against.
+% Not implemented in MARS; cited for context in the SI.
+@article{Schlegel1984,
+  author  = {Schlegel, H. Bernhard},
+  title   = {Estimating the {H}essian for gradient-type geometry optimizations},
+  journal = {Theoretica Chimica Acta},
+  volume  = {66},
+  number  = {5},
+  pages   = {333--340},
+  year    = {1984},
+  doi     = {10.1007/BF00554788}
+}
+
+@article{Fischer1992,
+  author  = {Fischer, Thomas H. and Almlof, Jan},
+  title   = {General methods for geometry and wave function optimization},
+  journal = {The Journal of Physical Chemistry},
+  volume  = {96},
+  number  = {24},
+  pages   = {9768--9774},
+  year    = {1992},
+  doi     = {10.1021/j100203a036}
+}
+
+% Redundant internal coordinates (--coords internal, mars/internal_coords.py):
+% the Pulay-Fogarasi back-transformation, the efficiency literature it rests
+% on, and the TRIC rigid-body coordinates used for multi-fragment systems.
+@article{Pulay1992,
+  author  = {Pulay, Peter and Fogarasi, G{\'e}za},
+  title   = {Geometry optimization in redundant internal coordinates},
+  journal = {The Journal of Chemical Physics},
+  volume  = {96},
+  number  = {4},
+  pages   = {2856--2860},
+  year    = {1992},
+  doi     = {10.1063/1.462844}
+}
+
+@article{Baker1993,
+  author  = {Baker, Jon},
+  title   = {Techniques for geometry optimization: A comparison of {C}artesian and natural internal coordinates},
+  journal = {Journal of Computational Chemistry},
+  volume  = {14},
+  number  = {9},
+  pages   = {1085--1100},
+  year    = {1993},
+  doi     = {10.1002/jcc.540140910}
+}
+
+@article{Peng1996,
+  author  = {Peng, Chunyang and Ayala, Philippe Y. and Schlegel, H. Bernhard and Frisch, Michael J.},
+  title   = {Using redundant internal coordinates to optimize equilibrium geometries and transition states},
+  journal = {Journal of Computational Chemistry},
+  volume  = {17},
+  number  = {1},
+  pages   = {49--56},
+  year    = {1996},
+  doi     = {10.1002/(SICI)1096-987X(19960115)17:1<49::AID-JCC5>3.0.CO;2-0}
+}
+
+@article{Bakken2002,
+  author  = {Bakken, Vebj{\o}rn and Helgaker, Trygve},
+  title   = {The efficient optimization of molecular geometries using redundant internal coordinates},
+  journal = {The Journal of Chemical Physics},
+  volume  = {117},
+  number  = {20},
+  pages   = {9160--9174},
+  year    = {2002},
+  doi     = {10.1063/1.1515483}
+}
+
+@article{Wang2016,
+  author  = {Wang, Lee-Ping and Song, Chenchen},
+  title   = {Geometry optimization made simple with translation and rotation coordinates},
+  journal = {The Journal of Chemical Physics},
+  volume  = {144},
+  number  = {21},
+  pages   = {214108},
+  year    = {2016},
+  doi     = {10.1063/1.4952956}
+}
+
 ```
 
 ## ML potentials and engines

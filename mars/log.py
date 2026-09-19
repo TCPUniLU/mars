@@ -21,6 +21,12 @@ logger.propagate = False  # Prevent duplicate messages from root logger
 # Track whether the banner has been displayed
 _banner_displayed = False
 
+MARS_CITATION = (
+    "S. Suárez-Dou et al., MARS: Machine-Learned Force Field\n"
+    "Framework for Automated Conformational Sampling, Vibrational Spectroscopy,\n"
+    "and Microsolvation, ChemRxiv (2026). doi:10.26434/chemrxiv.15007087/v1"
+)
+
 
 # ============================================================================
 # Global Timing Tracker
@@ -204,6 +210,9 @@ def init_log(
             + "Sampling, Vibrational Spectroscopy, and Microsolvation".center(70)
         )
         logger.info("=" * 70)
+        logger.info("")
+        logger.info("If you use MARS, please cite:")
+        logger.info("  " + MARS_CITATION)
         logger.info("")
 
 

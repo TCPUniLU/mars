@@ -19,8 +19,9 @@ This works transparently for both:
   applied inside the MD integrator, which is left as a future extension.)
 """
 
-import jax
 import jax.numpy as jnp
+
+from ..optimizer import _mask_frozen_gradient
 
 
 def make_frozen_energy_fn(energy_fn, reference_positions, frozen_indices):
@@ -67,14 +68,7 @@ def make_frozen_energy_fn_batched(energy_fn, frozen_indices):
     Returns:
         A new callable with the same signature as *energy_fn*.
     """
-    idx = jnp.array(frozen_indices, dtype=int)
-
-    def frozen_energy_fn(positions, **kwargs):
-        frozen_pos = jax.lax.stop_gradient(positions[idx])
-        pinned = positions.at[idx].set(frozen_pos)
-        return energy_fn(pinned, **kwargs)
-
-    return frozen_energy_fn
+    return _mask_frozen_gradient(energy_fn, frozen_indices)
 
 
 def log_constraints(log_fn, constraint_atoms, apply_to):

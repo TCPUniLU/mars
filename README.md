@@ -36,16 +36,18 @@ pip install -e .            # CPU JAX; add the GPU wheel below
 Pick the JAX backend for your hardware, then add the ML potential(s) you need:
 
 ```bash
-pip install -U "jax[cuda12]"          # NVIDIA GPU (CUDA 12); or jax[cuda13], or plain jax for CPU
+pip install -U "jax[cuda12]<0.11"     # NVIDIA GPU (CUDA 12); or jax[cuda13]<0.11, or "jax<0.11" for CPU
 
 # SO3LR (default, recommended) — installed from source:
-# v2 ships so3lr-s / so3lr-m / so3lr-l plus the legacy v1 model.
+# v2 ships so3lr-2-s / so3lr-2-m / so3lr-2-l plus the legacy so3lr-1 model.
 pip install -e ".[so3lr]"
 git clone https://github.com/general-molecular-simulations/so3lr.git
 cd so3lr && pip install . && cd ..
-# pick a model at run time with --so3lr-model {so3lr-s,so3lr-m,so3lr-l,so3lr_v1}
+# pick a model at run time with --so3lr-model {so3lr-1,so3lr-2-s,so3lr-2-m,so3lr-2-l}
+# (the pre-release names so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated)
 
-pip install -e ".[mace]"              # MACE   (also: pip install mace-jax)
+pip install -e ".[mace]"              # MACE   (mace-torch + flax pin)
+pip install "git+https://github.com/ACEsuit/mace-jax"   # + JAX-native MACE (not on PyPI)
 pip install "dxtb[libcint]>=0.4.0"    # dxtb (GFN-xTB); see the docs for the numpy note
 ```
 

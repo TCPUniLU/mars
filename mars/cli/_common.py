@@ -24,7 +24,23 @@ def setup_logging(args):
 
 
 def setup_precision(args):
-    """Configure JAX floating point precision and device."""
+    """Configure JAX floating point precision and device.
+
+    ``--coords internal`` requires ``--float64`` and is refused without it.
+    """
+    needs_x64 = (
+        getattr(args, "coords", "cartesian") == "internal"
+        or getattr(args, "coords_coarse", "cartesian") == "internal"
+    )
+    if needs_x64 and not args.float64:
+        log_error(
+            "--coords internal requires 64-bit precision: re-run with --float64. "
+            "In float32 the back-transformation residual (~1e-4 rad) produces a "
+            "spurious force of ~4e-3 eV/A, above the tightest convergence "
+            "threshold, and the optimizer oscillates without reporting an error."
+        )
+        sys.exit(1)
+
     if args.float64:
         enable_float64()
         log_info("Using 64-bit floating point precision")
@@ -57,10 +73,14 @@ def _potential_model_label(args):
     """Human-readable model label for the selected potential (``None`` if n/a)."""
     p = args.potential
     if p == "so3lr":
-        return getattr(args, "so3lr_model", None) or "so3lr_v1"
+        return getattr(args, "so3lr_model", None) or "so3lr-1"
     if p == "mace":
         foundation = getattr(args, "mace_foundation", None) or "off"
         model = getattr(args, "mace_model", None) or "small"
+        if foundation == "off24" and model in (None, "small", "medium"):
+            # Mirror MACEPotential._resolve_off24: OFF24 publishes one size, and
+            # "small" is only ever the CLI-wide default leaking through.
+            model = "medium"
         return f"{foundation}/{model}"
     if p == "dxtb":
         return getattr(args, "dxtb_method", None) or "gfn1"
@@ -163,6 +183,12 @@ def build_potential(args, structure, compute_charges=False):
         if args.float64:
             potential_kwargs["dtype"] = jnp.float64
 
+    elif args.potential == "valence":
+        # Test force field: needs the elements and a reference geometry to
+        # derive its topology from (initialize() is called below anyway, but
+        # the constructor signature requires species up front).
+        potential_kwargs["species"] = structure["numbers"]
+
     elif args.potential == "dxtb":
         potential_kwargs["species"] = structure["numbers"]
         potential_kwargs["charge"] = args.charge
@@ -179,11 +205,17 @@ def build_potential(args, structure, compute_charges=False):
 
     log_potential_and_citation(args)
 
-    try:
-        potential = get_potential(args.potential, **potential_kwargs)
-    except ValueError:
+    if args.potential not in list_potentials():
         available = ", ".join(list_potentials())
         log_error(f"Unknown potential '{args.potential}'. Available: {available}")
+        sys.exit(1)
+    try:
+        potential = get_potential(args.potential, **potential_kwargs)
+    except ValueError as exc:
+        # Report what the constructor actually objected to. This used to be
+        # reported as "Unknown potential", which hid every configuration error
+        # (a bad model name, an unsupported size) behind a wrong message.
+        log_error(f"Could not build potential '{args.potential}': {exc}")
         sys.exit(1)
 
     potential.initialize(structure["positions"])

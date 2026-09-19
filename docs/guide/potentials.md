@@ -31,15 +31,19 @@ detects which one is installed automatically:
 
 | `--so3lr-model` | Model | Requires |
 |-----------------|-------|----------|
-| `so3lr_v1` *(default)* | legacy v1 | either package |
-| `so3lr-s`  | v2 small | developing package |
-| `so3lr-m`  | v2 medium (recommended) | developing package |
-| `so3lr-l`  | v2 large (5 Å short-range cutoff) | developing package |
+| `so3lr-1` *(default)* | legacy v1 | either package |
+| `so3lr-2-s`  | v2 small | developing package |
+| `so3lr-2-m`  | v2 medium (recommended) | developing package |
+| `so3lr-2-l`  | v2 large (5 Å short-range cutoff) | developing package |
 | *(a path)* | custom / fine-tuned model workdir | developing package |
 
+The pre-release names `so3lr_v1`, `so3lr`, `so3lr-s`, `so3lr-m`, `so3lr-l`
+still resolve to the same models above but are deprecated and emit a
+`DeprecationWarning`; use the names in the table for new work.
+
 ```bash
-mars input.xyz --potential so3lr                          # v1 (works with either package)
-mars input.xyz --potential so3lr --so3lr-model so3lr-l    # v2 (developing package only)
+mars input.xyz --potential so3lr                             # v1 (works with either package)
+mars input.xyz --potential so3lr --so3lr-model so3lr-2-l     # v2 (developing package only)
 mars input.xyz --potential so3lr --so3lr-model /path/to/finetuned
 ```
 
@@ -55,10 +59,20 @@ for periodic systems).
 
     | Foundation | Backend | Status |
     |------------|---------|--------|
-    | `off`  | JAX-native | ✅ `small`, `medium`, `large` |
+    | `off`  | JAX-native | ✅ MACE-OFF23 — `small`, `medium`, `large` |
+    | `off24`| JAX-native | ✅ MACE-OFF24 — `medium` only (the only size published upstream) |
     | `mp`   | JAX-native | ✅ `small`, `medium`, `large` (and `medium-mpa-0`, …) |
     | `anicc`| JAX-native | ✅ supported |
     | `omol` | **PyTorch (ASE)** | ✅ via fallback (see below) |
+
+    `off24` needs no extra setup: `--mace-model` defaults to `medium` and is
+    resolved to the upstream checkpoint, which is downloaded once and cached
+    as converted JAX weights like any other family. A local checkpoint path or
+    URL may be passed instead.
+
+    ```bash
+    mars input.xyz --potential mace --mace-foundation off24
+    ```
 
     The JAX-native families are validated against the PyTorch reference
     (energies match to ~1e-6 eV, forces to ~1e-7 eV/Å). **`omol` uses NonLinear

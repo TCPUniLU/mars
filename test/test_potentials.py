@@ -258,7 +258,7 @@ class TestSO3LRVersionAdaptive:
         and falls back to v1 (never crashes)."""
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            pot = get_potential("so3lr", species=numbers, charge=0.0, model="so3lr-m")
+            pot = get_potential("so3lr", species=numbers, charge=0.0, model="so3lr-2-m")
             e = self._energy(pot, water)
         assert np.isfinite(e)
 
@@ -269,3 +269,36 @@ class TestSO3LRVersionAdaptive:
         else:
             # stable package: model selection ignored, warned, v1 used
             assert model_warnings
+
+    @pytest.mark.parametrize(
+        "deprecated,current",
+        [
+            ("so3lr_v1", "so3lr-1"),
+            ("so3lr", "so3lr-1"),
+            ("so3lr-s", "so3lr-2-s"),
+            ("so3lr-m", "so3lr-2-m"),
+            ("so3lr-l", "so3lr-2-l"),
+        ],
+    )
+    def test_deprecated_model_names_still_work(self, numbers, water, deprecated, current):
+        """Pre-release names resolve to the same model as their current-name
+        equivalent and still work, but raise DeprecationWarning; the current
+        names raise nothing."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            pot_dep = get_potential("so3lr", species=numbers, charge=0.0, model=deprecated)
+            e_dep = self._energy(pot_dep, water)
+        assert np.isfinite(e_dep)
+        dep_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert dep_warnings, f"{deprecated!r} should raise a DeprecationWarning"
+
+        with warnings.catch_warnings(record=True) as caught2:
+            warnings.simplefilter("always")
+            pot_cur = get_potential("so3lr", species=numbers, charge=0.0, model=current)
+            e_cur = self._energy(pot_cur, water)
+        cur_dep_warnings = [w for w in caught2 if issubclass(w.category, DeprecationWarning)]
+        assert not cur_dep_warnings, f"{current!r} should not raise DeprecationWarning"
+
+        assert e_dep == pytest.approx(
+            e_cur
+        ), f"{deprecated!r} and {current!r} should resolve to the identical model"

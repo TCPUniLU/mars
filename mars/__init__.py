@@ -11,7 +11,7 @@ This lets lightweight, JAX-free tools (e.g. ``mars viewer``) run in
 environments without a working JAX/GPU stack.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # ============================================================================
 # Suppress external package warnings by default
@@ -64,9 +64,22 @@ _LAZY_SUBMODULES = {
     ),
     "optimizer": (
         "optimize_single",
+        "optimize_single_ric",
         "optimize_batch_parallel",
         "find_stationary_point",
         "find_stationary_point_with_logging",
+        "ric_gate",
+        "RIC_DEFAULTS",
+    ),
+    "internal_coords": (
+        "CoordinateSpec",
+        "build_coordinates",
+        "make_coordinate_fns",
+        "generalized_inverse",
+        "internal_to_cartesian",
+        "global_tr_basis",
+        "initial_frag_ref",
+        "wrap_periodic",
     ),
     "mtd": (
         "MTDState",
@@ -133,6 +146,10 @@ _LAZY_SUBMODULES = {
         "symbol_to_number",
         "number_to_symbol",
         "symbols_to_numbers",
+        "lindh_model_hessian_cartesian",
+        "model_hessian_cartesian",
+        "initial_internal_hessian",
+        "HESSIAN_MODES",
     ),
     "potentials": (
         "PotentialWrapper",
@@ -281,6 +298,13 @@ __all__ = [
     "run_multi_temperature_rotamer_md",
     # Optimization
     "optimize_single",
+    "optimize_single_ric",
+    "build_coordinates",
+    "make_coordinate_fns",
+    "generalized_inverse",
+    "internal_to_cartesian",
+    "lindh_model_hessian_cartesian",
+    "initial_internal_hessian",
     "optimize_multilevel",
     "optimize_batch_parallel",
     "find_stationary_point",

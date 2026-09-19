@@ -94,3 +94,41 @@ opt_pos, energy = find_stationary_point(structure["positions"], energy_fn)
 See also: [User guide](../guide/optimization.md),
 [CLI reference](../cli/optimize.md),
 [`mars.optimizer`](../api/optimizer.md).
+
+## Internal coordinates
+
+`--coords internal` requires `--float64`; MARS errors out without it.
+
+Tight convergence on a **small** flexible molecule, where the step-count
+reduction is largest:
+
+```bash
+mars optimize flexible.xyz --coords internal --float64 --fmax 0.002
+```
+
+Separate the two effects — coordinate system and initial Hessian — the way you
+would for a benchmark:
+
+```bash
+mars optimize m.xyz --fmax 0.002                                          # LBFGS baseline
+mars optimize m.xyz --fmax 0.002 --coords cartesian --init-hessian lindh  # stepper only
+mars optimize m.xyz --fmax 0.002 --coords internal  --init-hessian identity --float64
+mars optimize m.xyz --fmax 0.002 --coords internal  --init-hessian lindh    --float64
+```
+
+The last arm converges in roughly 1/30 of the steps of the first, but each
+step carries an `O(n_int³)` transformation on top of the potential, so the
+total wall time is comparable.
+
+A hydrogen-bonded complex, where the rigid-body coordinates matter:
+
+```bash
+mars optimize dimer.xyz --coords internal --float64 --interfragment tric
+```
+
+Per-conformer numbers rather than batch throughput (the batch loop runs until
+its slowest member converges, so its wall-clock is not a per-structure figure):
+
+```bash
+mars optimize conformers.xyz --all-conformers --not-parallel --coords internal --float64
+```

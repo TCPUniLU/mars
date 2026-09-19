@@ -129,6 +129,76 @@ def _connected_components(n_atoms: int, bonds: List[Tuple[int, int]]) -> List[Li
 # ============================================================================
 
 
+def build_bonded_lists(
+    positions,
+    atomic_numbers,
+    tolerance: float = 1.3,
+    bonds: Optional[List[Tuple[int, int]]] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Enumerate bonds, angles and proper torsions from the covalent bond graph.
+
+    Pure NumPy, no JAX — this module stays importable without JAX so that
+    ``mars viewer`` works on a bare install.  Mirrors the enumeration in
+    :func:`mars.ir._build_topology` (which additionally assigns bond orders and
+    labels and therefore has to live in ``ir.py``), so the two agree by
+    construction on bonds and angles.
+
+    Args:
+        positions: ``(n_atoms, 3)`` positions in Angstrom.
+        atomic_numbers: ``(n_atoms,)`` atomic numbers.
+        tolerance: Covalent-radius tolerance passed to
+            :func:`mars.utils.detect_bonds` (default 1.3, the MARS-wide value).
+        bonds: Optional precomputed bond list, to avoid re-detecting.
+
+    Returns:
+        Three integer arrays ``(bonds, angles, torsions)`` of shapes
+        ``(n_b, 2)``, ``(n_a, 3)`` and ``(n_t, 4)``.  Angles are ``(i, j, k)``
+        with *j* central; torsions are ``(i, j, k, l)`` about the bond
+        ``(j, k)``.  Empty inputs give correctly-shaped empty arrays.
+
+    Example:
+        >>> b, a, t = build_bonded_lists(positions, numbers)
+        >>> b.shape, a.shape, t.shape
+        ((21, 2), (36, 3), (41, 4))
+    """
+    positions = np.asarray(positions, dtype=float)
+    atomic_numbers = np.asarray(atomic_numbers, dtype=int)
+    n_atoms = int(positions.shape[0])
+
+    if bonds is None:
+        bonds, _ = detect_bonds(positions, atomic_numbers, tolerance)
+    bond_arr = np.asarray(bonds, dtype=int).reshape(-1, 2)
+
+    neighbors: Dict[int, set] = {i: set() for i in range(n_atoms)}
+    for i, j in bond_arr:
+        neighbors[int(i)].add(int(j))
+        neighbors[int(j)].add(int(i))
+
+    angles: List[Tuple[int, int, int]] = []
+    for j in range(n_atoms):
+        nbrs = sorted(neighbors[j])
+        for a in range(len(nbrs)):
+            for b in range(a + 1, len(nbrs)):
+                angles.append((nbrs[a], j, nbrs[b]))
+
+    torsions: List[Tuple[int, int, int, int]] = []
+    for j, k in bond_arr:
+        j, k = int(j), int(k)
+        for i in sorted(neighbors[j]):
+            if i == k:
+                continue
+            for l in sorted(neighbors[k]):
+                if l == j or l == i:
+                    continue
+                torsions.append((i, j, k, l))
+
+    return (
+        bond_arr,
+        np.asarray(angles, dtype=int).reshape(-1, 3),
+        np.asarray(torsions, dtype=int).reshape(-1, 4),
+    )
+
+
 def analyse_topology(
     positions, atomic_numbers, tolerance: float = 1.3, cell=None
 ) -> MoleculeTopology:

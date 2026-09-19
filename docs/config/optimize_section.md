@@ -41,3 +41,24 @@ mars optimize input.xyz --config opt.toml
 | `charge` | float | `--charge` |
 
 See the [optimize CLI reference](../cli/optimize.md) for the full list.
+
+## Coordinate system keys
+
+These need no special handling — the config layer turns any scalar key into
+the matching flag:
+
+```toml
+[optimize]
+coords = "internal"              # --coords internal   (default: cartesian)
+init_hessian = "lindh"           # --init-hessian lindh
+interfragment = "tric"           # --interfragment tric
+ric_max_atoms = 150              # --ric-max-atoms 150
+ric_backtransform_iter = 25      # --ric-backtransform-iter 25
+```
+
+These keys belong to `[optimize]` only. The conformational-search CLI does not
+expose internal coordinates; drive
+[`mars.conf_sampling`](../api/conf_sampling.md) directly if you need them
+there.
+
+See the [optimization guide](../guide/optimization.md).

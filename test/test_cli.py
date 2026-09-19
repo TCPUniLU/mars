@@ -90,6 +90,53 @@ def test_cli_optimize_task_stationary(harmonic_xyz, mars_cli_cmd, tmp_output_dir
     assert out.exists()
 
 
+def test_setup_precision_refuses_internal_without_float64():
+    """Unit-level guard, so the requirement is covered even where the full CLI
+    cannot be imported. --coords internal in float32 must exit rather than run:
+    the Pulay back-transformation residual (~1e-4 rad) maps to a spurious force
+    of ~4e-3 eV/A, above the tightest convergence threshold, and the failure is
+    silent rather than a crash."""
+    import types
+
+    from mars.cli._common import setup_precision
+
+    def _args(**kw):
+        d = dict(coords="cartesian", coords_coarse="cartesian", float64=False, cpu=False)
+        d.update(kw)
+        return types.SimpleNamespace(**d)
+
+    with pytest.raises(SystemExit) as exc:
+        setup_precision(_args(coords="internal"))
+    assert exc.value.code == 1
+
+    # Cartesian in float32 is unaffected, and internal with --float64 is fine.
+    setup_precision(_args())
+
+
+def test_cli_optimize_internal_requires_float64(harmonic_xyz, mars_cli_cmd, tmp_output_dir):
+    """--coords internal must refuse to run in float32 rather than silently
+    oscillating: the back-transformation residual alone exceeds the tightest
+    convergence threshold."""
+    proc = _run(
+        mars_cli_cmd
+        + [
+            "optimize",
+            str(harmonic_xyz),
+            "--potential",
+            "harmonic",
+            "--coords",
+            "internal",
+            "--maxiter",
+            "5",
+        ],
+        cwd=tmp_output_dir,
+    )
+    assert proc.returncode != 0
+    out = proc.stdout + proc.stderr
+    assert "--float64" in out
+    assert "Traceback" not in proc.stderr
+
+
 # ── ir (Hessian-only, --no-optimize) ───────────────────────────────────────
 
 

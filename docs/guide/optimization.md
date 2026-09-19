@@ -21,6 +21,24 @@
 
 Convergence is controlled by `--fmax` (eV/Å) and `--maxiter`.
 
+## Coordinate systems
+
+`--coords` is an axis orthogonal to `--method`, and is an opt-in add-on to
+`mars optimize` only — the conformational-search CLI is unchanged.
+
+| | |
+|--------|-------|
+| `cartesian` *(default)* | Everything above, unchanged |
+| `internal` | RFO/BFGS in redundant internal coordinates, with `--init-hessian {identity,lindh}` |
+
+**`--coords internal` requires `--float64`** and exits with an error without
+it — in float32 the back-transformation residual alone exceeds a tight
+`--fmax`, so the optimizer would oscillate without ever reporting a failure.
+
+```bash
+mars optimize small.xyz --coords internal --float64 --fmax 0.002
+```
+
 ## Batch optimization
 
 For multi-frame XYZ inputs:

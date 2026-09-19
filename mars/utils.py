@@ -1658,3 +1658,250 @@ def _is_jax_oom(exc: Exception) -> bool:
     """Detect JAX/XLA out-of-memory errors."""
     msg = str(exc).upper()
     return "RESOURCE_EXHAUSTED" in msg or "OUT OF MEMORY" in msg or isinstance(exc, MemoryError)
+
+
+# ============================================================================
+# Initial Hessians for geometry optimization
+#
+# Two modes only: ``identity`` (the neutral reference) and ``lindh`` -- the
+# Lindh, Bernhardsson, Karlstrom & Malmqvist (1995) model.  Lindh's damping
+# ``rho_ij = exp[alpha_ij (r_ref_ij^2 - r_ij^2)]`` is defined for *any* pair of
+# atoms, so unlike the bonded-topology models (Schlegel 1984, Fischer-Almlof
+# 1992) it also produces a sensible force constant for interfragment and
+# hydrogen-bonded contacts, and for the TRIC translation/rotation coordinates
+# that no model Hessian tabulates.
+#
+# Everything is assembled as a Cartesian model Hessian and then transformed to
+# internals, which is Lindh's own construction.
+#
+# Reference:
+#     Lindh, Bernhardsson, Karlstrom & Malmqvist, Chem. Phys. Lett. 241 (1995) 423.
+# ============================================================================
+
+HARTREE_EV = 27.211386245988
+BOHR_A = 0.529177210903
+_EV_PER_HARTREE_BOHR2 = HARTREE_EV / BOHR_A**2  # 97.1736 eV/A^2 per a.u.
+
+#: Available initial-Hessian models.
+HESSIAN_MODES = ("identity", "lindh")
+
+# Lindh et al. 1995, Table 1. Row index: 0 = H/He, 1 = Li-Ne, 2 = Na and beyond.
+LINDH_ALPHA = np.array(
+    [
+        [1.0000, 0.3949, 0.3949],
+        [0.3949, 0.2800, 0.2800],
+        [0.3949, 0.2800, 0.2800],
+    ]
+)  # bohr^-2
+LINDH_R_REF = np.array(
+    [
+        [1.35, 2.10, 2.53],
+        [2.10, 2.87, 3.40],
+        [2.53, 3.40, 3.40],
+    ]
+)  # bohr
+
+LINDH_K_STRETCH = 0.45  # hartree / bohr^2
+LINDH_K_BEND = 0.15  # hartree / rad^2
+LINDH_K_TORSION = 0.005  # hartree / rad^2
+
+_WARNED_HEAVY: set = set()
+
+
+def _lindh_row_index(z) -> np.ndarray:
+    """Lindh periodic-table row index, clamped at row 3.
+
+    Elements beyond argon reuse the row-3 parameters, as Molcas and geomeTRIC
+    do.  A mediocre Hessian guess costs a few optimization steps; refusing to
+    produce one would cost the whole calculation.
+    """
+    import warnings
+
+    z = np.asarray(z, dtype=int)
+    row = np.where(z <= 2, 0, np.where(z <= 10, 1, 2))
+    heavy = set(int(v) for v in np.unique(z[z > 36]))
+    new = heavy - _WARNED_HEAVY
+    if new:
+        _WARNED_HEAVY.update(new)
+        warnings.warn(
+            f"Lindh Hessian parameters are extrapolated for Z={sorted(new)} "
+            "(tabulated only up to Ar); the initial guess will be approximate.",
+            UserWarning,
+        )
+    return row
+
+
+def _lindh_rho(positions: np.ndarray, atomic_numbers) -> np.ndarray:
+    """Lindh damping matrix ``rho_ij``, dimensionless, shape (N, N)."""
+    row = _lindh_row_index(atomic_numbers)
+    alpha = LINDH_ALPHA[np.ix_(row, row)]
+    r_ref = LINDH_R_REF[np.ix_(row, row)]
+    d = np.linalg.norm(positions[:, None, :] - positions[None, :, :], axis=-1) / BOHR_A
+    return np.exp(alpha * (r_ref**2 - d**2))
+
+
+def _lindh_primitive_lists(positions, atomic_numbers, rho, rho_cutoff, bond_tolerance):
+    """Stretch/bend/torsion primitive index lists for the model Hessian."""
+    from .topology import build_bonded_lists
+
+    n = len(atomic_numbers)
+    iu, ju = np.triu_indices(n, k=1)
+    keep = rho[iu, ju] > rho_cutoff
+    pairs = np.stack([iu[keep], ju[keep]], axis=1)
+
+    # Bends: j central, both legs surviving the damping cutoff.
+    triples = []
+    for j in range(n):
+        cand = [int(a) for a in np.where(rho[j] > rho_cutoff)[0] if a != j]
+        for a in range(len(cand)):
+            for b in range(a + 1, len(cand)):
+                triples.append((cand[a], j, cand[b]))
+    triples = np.asarray(triples, dtype=int).reshape(-1, 3)
+
+    # Torsions only over the covalent graph: an all-quadruples list is 1e5-1e6
+    # entries at 300 atoms for a term whose rho^3 damping makes the non-bonded
+    # contributions negligible.
+    _b, _a, tors = build_bonded_lists(positions, atomic_numbers, tolerance=bond_tolerance)
+    return pairs, triples, tors
+
+
+def _assemble_cartesian_hessian(pos, n, groups):
+    """``H = sum_p k_p b_p b_p^T`` over the primitive groups, vectorised."""
+    import jax
+    import jax.numpy as jnp
+
+    x = jnp.asarray(pos)
+    h = jnp.zeros((3 * n, 3 * n), dtype=x.dtype)
+    for prim_idx, prim_k, kernel in groups:
+        if len(prim_idx) == 0:
+            continue
+        idx = jnp.asarray(prim_idx)
+        kk = jnp.asarray(prim_k, dtype=x.dtype)
+        grads = jax.vmap(jax.jacrev(kernel))(x[idx])  # (n_p, k, 3)
+        n_p, k, _ = grads.shape
+        vals = grads.reshape(n_p, 3 * k)
+        flat = (3 * idx[:, :, None] + jnp.arange(3)).reshape(n_p, 3 * k)
+        blocks = kk[:, None, None] * vals[:, :, None] * vals[:, None, :]
+        h = h.at[flat[:, :, None], flat[:, None, :]].add(blocks)
+    return 0.5 * (h + h.T)
+
+
+def lindh_model_hessian_cartesian(
+    positions,
+    atomic_numbers,
+    *,
+    rho_cutoff: float = 1e-4,
+    include_torsions: bool = True,
+    bond_tolerance: float = 1.3,
+):
+    """Lindh (1995) model Hessian in Cartesian coordinates, eV/A^2.
+
+    Args:
+        positions: ``(n_atoms, 3)`` positions in Angstrom.
+        atomic_numbers: ``(n_atoms,)`` atomic numbers.
+        rho_cutoff: Primitives whose damping product falls below this are
+            dropped.  1e-4 corresponds to a pair cutoff of roughly 3.5 A.
+        include_torsions: Include covalent torsions.
+        bond_tolerance: Covalent-radius tolerance for the torsion bond graph.
+
+    Returns:
+        ``(3N, 3N)`` symmetric positive-semidefinite Hessian in eV/A^2.
+    """
+    from .internal_coords import _q_bend, _q_stretch, _q_torsion
+
+    pos = np.asarray(positions, dtype=float)
+    z = np.asarray(atomic_numbers, dtype=int)
+    n = len(z)
+    rho = _lindh_rho(pos, z)
+    pairs, triples, tors = _lindh_primitive_lists(pos, z, rho, rho_cutoff, bond_tolerance)
+
+    k_str = LINDH_K_STRETCH * rho[pairs[:, 0], pairs[:, 1]] if len(pairs) else np.zeros(0)
+    if len(triples):
+        k_bend = (
+            LINDH_K_BEND * rho[triples[:, 0], triples[:, 1]] * rho[triples[:, 1], triples[:, 2]]
+        )
+    else:
+        k_bend = np.zeros(0)
+    if include_torsions and len(tors):
+        k_tor = (
+            LINDH_K_TORSION
+            * rho[tors[:, 0], tors[:, 1]]
+            * rho[tors[:, 1], tors[:, 2]]
+            * rho[tors[:, 2], tors[:, 3]]
+        )
+    else:
+        tors, k_tor = np.zeros((0, 4), int), np.zeros(0)
+
+    # a.u. -> eV/A^2 for stretches, eV/rad^2 for the angular terms.
+    k_str = k_str * _EV_PER_HARTREE_BOHR2
+    k_bend = k_bend * HARTREE_EV
+    k_tor = k_tor * HARTREE_EV
+    return _assemble_cartesian_hessian(
+        pos, n, [(pairs, k_str, _q_stretch), (triples, k_bend, _q_bend), (tors, k_tor, _q_torsion)]
+    )
+
+
+def model_hessian_cartesian(mode: str, positions, atomic_numbers, *, bond_tolerance: float = 1.3):
+    """Cartesian initial Hessian in eV/A^2 for one of :data:`HESSIAN_MODES`."""
+    import jax.numpy as jnp
+
+    pos = jnp.asarray(positions)
+    if mode == "identity":
+        return jnp.eye(3 * pos.shape[0], dtype=pos.dtype)
+    if mode == "lindh":
+        return lindh_model_hessian_cartesian(pos, atomic_numbers, bond_tolerance=bond_tolerance)
+    raise ValueError(f"Unknown init_hessian mode {mode!r}; choose from {HESSIAN_MODES}")
+
+
+def initial_internal_hessian(
+    mode: str,
+    positions,
+    atomic_numbers,
+    ginv,
+    *,
+    projector_penalty: float = 1000.0,
+    min_eigenvalue: float = 1e-4,
+    bond_tolerance: float = 1.3,
+):
+    """Initial internal-coordinate Hessian, ``(n_internal, n_internal)``.
+
+    Builds the Cartesian model Hessian and transforms it with
+    ``H_q = (B^+)^T H_x B^+``, then projects onto the non-redundant subspace,
+    ``H_q <- P H_q P + penalty (I - P)``.
+
+    The projection is not cosmetic.  Without the large penalty in the redundant
+    subspace the quasi-Newton step tries to change combinations of coordinates
+    that the back-transformation cannot realise, which looks fine on small
+    rigid molecules and falls apart on floppy ones (Bakken & Helgaker 2002).
+
+    The curvilinear term ``sum_i g_q,i d^2 q_i/dx^2`` is deliberately omitted:
+    it is exact only at a stationary point, and mixing it with a *model* ``H_x``
+    buys nothing.
+
+    Args:
+        mode: One of :data:`HESSIAN_MODES`.
+        positions: ``(n_atoms, 3)`` positions in Angstrom.
+        atomic_numbers: ``(n_atoms,)`` atomic numbers.
+        ginv: Pseudo-inverse operators at *positions*
+            (:class:`mars.internal_coords.GeneralizedInverse`).
+        projector_penalty: Force constant assigned to the redundant subspace.
+        min_eigenvalue: Eigenvalues below this are lifted to it, so the first
+            step is downhill.
+        bond_tolerance: Covalent-radius tolerance.
+
+    Returns:
+        ``(n_internal, n_internal)`` symmetric positive-definite Hessian.
+    """
+    import jax.numpy as jnp
+
+    h_x = model_hessian_cartesian(mode, positions, atomic_numbers, bond_tolerance=bond_tolerance)
+    bp = ginv.b_pinv
+    h_q = bp.T @ h_x @ bp
+    h_q = 0.5 * (h_q + h_q.T)
+    p = ginv.projector
+    eye = jnp.eye(h_q.shape[0], dtype=h_q.dtype)
+    h_q = p @ h_q @ p + projector_penalty * (eye - p)
+    h_q = 0.5 * (h_q + h_q.T)
+    evals, vecs = jnp.linalg.eigh(h_q)
+    evals = jnp.maximum(evals, min_eigenvalue)
+    return (vecs * evals) @ vecs.T

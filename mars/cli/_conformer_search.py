@@ -174,6 +174,24 @@ def run_conformer_search_workflow(args):
     # Convert CLI inputs from kcal/mol to internal eV (None stays None)
     ewin_ev = args.ewin * KCALMOL_TO_EV if args.ewin is not None else None
 
+    # Coordinate system: an axis orthogonal to --method, opt-in, default off.
+    ric_kwargs = dict(
+        coords=getattr(args, "coords", "cartesian"),
+        coords_coarse=getattr(args, "coords_coarse", "cartesian"),
+        init_hessian=getattr(args, "init_hessian", None),
+        interfragment=getattr(args, "interfragment", "tric"),
+        ric_options={
+            "max_atoms": getattr(args, "ric_max_atoms", 150),
+            "backtransform_iter": getattr(args, "ric_backtransform_iter", 25),
+        },
+    )
+    if "internal" in (ric_kwargs["coords"], ric_kwargs["coords_coarse"]):
+        log_info(
+            f"Coordinate system: {ric_kwargs['coords']} "
+            f"(coarse cycles: {ric_kwargs['coords_coarse']}, "
+            f"init_hessian={ric_kwargs['init_hessian'] or 'lindh'})"
+        )
+
     # Build manual MTD params if user specified non-default values
     mtd_params = None
     if args.kpush != 20.0 or args.alpha != 0.5 or args.cvdump_fs != 50.0:
@@ -218,6 +236,7 @@ def run_conformer_search_workflow(args):
                 fire_n_min=args.fire_n_min,
                 output_file=args.output,
                 **opt_kwargs,
+                **ric_kwargs,
             )
 
         elif args.mtd_only:
@@ -247,6 +266,7 @@ def run_conformer_search_workflow(args):
                 fire_n_min=args.fire_n_min,
                 output_file=args.output,
                 **opt_kwargs,
+                **ric_kwargs,
             )
 
         else:
@@ -285,6 +305,7 @@ def run_conformer_search_workflow(args):
                 fire_n_min=args.fire_n_min,
                 output_file=args.output,
                 **opt_kwargs,
+                **ric_kwargs,
             )
 
     except Exception as e:

@@ -44,6 +44,29 @@ def harmonic_energy():
 
 
 @pytest.fixture(scope="session")
+def bonded_energy():
+    """Valence force field over a *given* geometry's topology.
+
+    Needed because neither of the other test potentials can exercise
+    internal coordinates: ``harmonic_energy`` is a spring to the centroid, so
+    its minimum collapses every atom onto one point where all bond lengths are
+    zero and the coordinate set is singular -- and its Cartesian Hessian is
+    exactly quadratic and isotropic, which makes any coordinate transformation
+    a pessimisation.  ``lj_energy`` has no bonded terms, so covalent-radius
+    bond detection on its minimum returns nonsense.
+
+    Returns a factory ``(positions, numbers) -> energy_fn``.
+    """
+    from mars.potentials import get_potential
+
+    def _make(positions, numbers):
+        pot = get_potential("valence", species=numbers, positions=positions)
+        return pot.build_energy_fn()
+
+    return _make
+
+
+@pytest.fixture(scope="session")
 def lj_energy():
     """Lennard-Jones potential for testing pair interactions."""
 
