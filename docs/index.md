@@ -10,8 +10,26 @@ spectroscopy, and explicit solvation — built on one pluggable potential layer
 (SO3LR, MACE, dxtb…) that auto-tunes its metadynamics from molecular flexibility.
 
 [Install :material-arrow-right:](install.md){ .md-button .md-button--primary }
+[Graphical interface :material-arrow-right:](gui/index.md){ .md-button .md-button--primary }
 [Quickstart :material-arrow-right:](quickstart.md){ .md-button }
 [Examples :material-arrow-right:](examples/index.md){ .md-button }
+
+---
+
+## Start with the graphical interface
+
+Everything MARS does can be run from your browser: load a structure, choose a
+task and a model, follow the run, and look at the conformers and spectra.
+The GUI also shows which models are installed in which Python environment,
+installs the missing ones, and lists the references to cite for each job.
+
+```bash
+mars gui
+```
+
+<video src="assets/gui/gui_demo.mp4" poster="assets/gui/home.png" autoplay loop muted playsinline controls style="width:100%; border-radius:8px; border:1px solid var(--md-default-fg-color--lightest)"></video>
+
+[Tour of the GUI :material-arrow-right:](gui/index.md){ .md-button }
 
 ---
 
@@ -59,7 +77,7 @@ spectroscopy, and explicit solvation — built on one pluggable potential layer
     SO3LR, MACE, dxtb, NCI confinement, plus harmonic / LJ test
     potentials. One-line decorator to register your own.
 
-    [:octicons-arrow-right-24: Guide](guide/potentials.md) ·
+    [:octicons-arrow-right-24: Guide](guide/potentials/index.md) ·
     [API](api/potentials.md)
 
 -   :material-file-cog-outline:{ .lg .middle } **Config files**

@@ -13,7 +13,12 @@ from ..log import (
     timer_reset,
     timer_start,
 )
-from ._common import log_potential_and_citation, setup_logging, validate_input_file
+from ._common import (
+    extra_potential_spec,
+    log_potential_and_citation,
+    setup_logging,
+    validate_input_file,
+)
 from ._config import parse_atom_indices
 
 
@@ -47,14 +52,19 @@ def run_ir_workflow(args):
     else:
         atom_indices = None
 
-    potential_options = {}
+    potential_options = {"spin": getattr(args, "spin", None)}
     if args.potential == "mace":
         potential_options["mace_foundation"] = getattr(args, "mace_foundation", None)
         potential_options["mace_model"] = getattr(args, "mace_model", None)
         potential_options["mace_cache_dir"] = getattr(args, "mace_cache_dir", None)
         potential_options["mace_spin"] = getattr(args, "spin", None)
+        potential_options["mace_backend"] = getattr(args, "mace_backend", None)
     elif args.potential == "dxtb":
         potential_options["dxtb_method"] = getattr(args, "dxtb_method", None)
+    spec = extra_potential_spec(args)
+    if spec is not None:
+        # jax-md ML models, the SO3LR jax-md backend and classical force fields
+        potential_options["registry_name"], potential_options["extra_kwargs"] = spec
 
     # Announce the potential + model and its citation (IR builds the potential
     # internally rather than through build_potential).

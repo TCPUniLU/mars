@@ -6,6 +6,7 @@ mars ir <input.xyz> [OPTIONS]         # IR spectroscopy
 mars optimize <input.xyz> [OPTIONS]   # Structure optimization
 mars solvation <solute.xyz> [OPTIONS] # Explicit solvation
 mars viewer [input.xyz] [OPTIONS]     # Interactive 3D / IR / NCI viewer
+mars gui [OPTIONS]                    # Graphical interface in the browser
 ```
 
 Every subcommand prints a complete option reference with `--help`.
@@ -37,3 +38,4 @@ Every subcommand prints a complete option reference with `--help`.
 - [`mars optimize`](optimize.md) — structure optimization
 - [`mars solvation`](solvation.md) — explicit solvation
 - [`mars viewer`](viewer.md) — interactive 3D / IR / NCI viewer
+- [`mars gui`](gui.md) — graphical interface (all tasks, jobs, models and environments)

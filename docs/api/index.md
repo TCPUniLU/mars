@@ -9,7 +9,8 @@ so the source files in `mars/` are the single point of truth.
 | Module | Purpose |
 |--------|---------|
 | [`mars.utils`](utils.md) | Periodic table, structure I/O, bond detection, JAX helpers |
-| [`mars.potentials`](potentials.md) | Potential registry (SO3LR, MACE, dxtb, harmonic, LJ, confinement) and `PotentialWrapper` ABC |
+| [`mars.potentials`](potentials.md) | Potential registry (SO3LR, MACE, dxtb, UMA, ORB, ANI, AIMNet2, AceFF, force fields, harmonic, LJ, confinement) and `PotentialWrapper` ABC |
+| [`mars.forcefields`](forcefields.md) | Classical force fields (AMBER, CHARMM, OPLS-AA, AMOEBA): readers, OpenMM conversion, JAX terms |
 | [`mars.ir`](ir.md) | IR spectrum (Hessian / MD-based), normal modes, peak allocation |
 | [`mars.solvation`](solvation.md) | Layer-by-layer solvation shell builder |
 | [`mars.solvents`](solvents.md) | Built-in solvent library + runtime registration |
@@ -22,3 +23,5 @@ so the source files in `mars/` are the single point of truth.
 | [`mars.flexibility`](flexibility.md) | Molecular flexibility metric and MTD parameter grid |
 | [`mars.functional_groups`](functional_groups.md) | AccFG-style FG identification for IR peak allocation |
 | [`mars.log`](log.md) | Logging, timing tracker, progress bars |
+| [`mars.gui`](gui.md) | Graphical interface: server, jobs, models and environments, demo, optional sections |
+| [`mars.citations`](citations.md) | References of methods, models and data; the ones a job used |

@@ -137,6 +137,123 @@ class PotentialWrapper(ABC):
         return True
 
 
+#: Elements covered by the OMol25 training set (H through Bi, Z = 1-83), used
+#: by the OMol-trained models (MACE-OMol, UMA omol task, Orb-v3 OMol).
+OMOL25_ELEMENTS = frozenset(range(1, 84))
+
+
+def _symbols(numbers) -> str:
+    from .utils import NUMBER_TO_SYMBOL
+
+    return ", ".join(f"{NUMBER_TO_SYMBOL.get(int(z), '?')} (Z={int(z)})" for z in numbers)
+
+
+def validate_model_inputs(
+    model: str,
+    species,
+    charge: float = 0.0,
+    spin: float = 1.0,
+    *,
+    elements=None,
+    charge_aware: bool = True,
+    spin_aware: bool = False,
+    hint: str = "",
+) -> None:
+    """Check that a model supports the elements, charge and spin of a system.
+
+    Every ML / semi-empirical potential calls this when it is built, so an
+    unsupported input fails immediately with an explanation, instead of
+    giving silently meaningless energies.
+
+    Args:
+        model: Human-readable model name for the messages.
+        species: Atomic numbers of the system.
+        charge: Total charge.
+        spin: Spin multiplicity 2S+1.
+        elements: Atomic numbers the model was trained on (``None``: no limit).
+        charge_aware: Whether the model takes a total charge.
+        spin_aware: Whether the model takes a spin multiplicity.
+        hint: Extra suggestion appended to the messages.
+
+    Raises:
+        ValueError: For unsupported elements, charge or spin, or a charge /
+            multiplicity inconsistent with the electron count.
+    """
+    from .utils import check_charge
+
+    numbers = np.asarray(species, dtype=int).ravel()
+    tail = f" {hint}" if hint else ""
+    if elements is not None:
+        bad = sorted(set(int(z) for z in numbers) - set(int(z) for z in elements))
+        if bad:
+            allowed = sorted(int(z) for z in elements)
+            if len(allowed) <= 20:
+                listed = _symbols(allowed)
+            else:
+                gaps = sorted(set(range(allowed[0], allowed[-1] + 1)) - set(allowed))
+                listed = f"Z = {allowed[0]}-{allowed[-1]}"
+                if gaps:
+                    listed += f" except {_symbols(gaps)}"
+            raise ValueError(
+                f"{model} does not support element(s) {_symbols(bad)}. "
+                f"Supported: {listed}.{tail}"
+            )
+    if not charge_aware and float(charge) != 0.0:
+        raise ValueError(
+            f"{model} has no charge input (neutral systems only); got charge={charge:g}.{tail}"
+        )
+    if not spin_aware and float(spin) != 1.0:
+        raise ValueError(
+            f"{model} is closed-shell only (no spin input); got multiplicity {spin:g}. "
+            "Use a spin-aware potential (so3lr v2, mace omol, uma, orb, dxtb)." + tail
+        )
+    check_charge({"numbers": numbers}, charge=charge, multiplicity=spin)
+
+
+class ChargesFunction:
+    """Partial charges plus, optionally, per-atom dipole contributions.
+
+    ``charges_fn(positions, **kw) -> (n_atoms,)`` as usual.  Potentials whose
+    molecular dipole is not just ``sum_i q_i r_i`` (polarizable / multipolar
+    force fields such as AMOEBA) also provide
+    ``atomic_dipoles(positions, **kw) -> (n_atoms, 3)`` in e·Å, whose sum is the
+    molecular dipole; IR intensities then use it (see :func:`atomic_dipoles`).
+    """
+
+    def __init__(self, charges: Callable, atomic_dipoles: Callable = None):
+        self.charges = charges
+        self.atomic_dipoles = atomic_dipoles
+
+    def __call__(self, positions, **kwargs):
+        return self.charges(positions, **kwargs)
+
+    def jit(self) -> "ChargesFunction":
+        """Both callables wrapped in ``jax.jit``."""
+        return ChargesFunction(
+            jax.jit(self.charges),
+            None if self.atomic_dipoles is None else jax.jit(self.atomic_dipoles),
+        )
+
+
+def atomic_dipoles(charges_fn: Callable, positions, **kwargs):
+    """Per-atom dipole contributions ``(n_atoms, 3)`` in e·Å.
+
+    Uses ``charges_fn.atomic_dipoles`` when the potential provides it, else
+    ``q_i r_i``.
+    """
+    fn = getattr(charges_fn, "atomic_dipoles", None)
+    if fn is not None:
+        return fn(positions, **kwargs)
+    return charges_fn(positions, **kwargs)[:, None] * positions
+
+
+def jit_charges(charges_fn: Callable) -> Callable:
+    """``jax.jit`` a charges function, keeping its ``atomic_dipoles`` if any."""
+    if isinstance(charges_fn, ChargesFunction):
+        return charges_fn.jit()
+    return jax.jit(charges_fn)
+
+
 # ============================================================================
 # Potential Registry
 # ============================================================================
@@ -581,6 +698,12 @@ class SO3LRPotential(PotentialWrapper):
     #: so they are listed here rather than in _MODEL_ALIASES.
     _DEPRECATED_MODEL_NAMES = {"so3lr_v1", "so3lr", "so3lr-s", "so3lr-m", "so3lr-l"}
     _DEFAULT_MODEL = "so3lr-1"
+    #: Elements of the SO3LR v1 training data (``so3lr.prepare_dimer_xyz``).
+    _SO3LR_V1_ELEMENTS = frozenset({1, 6, 7, 8, 9, 15, 16, 17})
+    #: Elements of the v2 models: the QCML dataset coverage (Z <= 85 without
+    #: He, Ne, Ar, Rb, Sr, Ba; Fig. 1b of Ganscha et al., Sci. Data 12, 406
+    #: (2025), doi:10.1038/s41597-025-04720-7).
+    _SO3LR_V2_ELEMENTS = frozenset(range(1, 86)) - {2, 10, 18, 37, 38, 56}
 
     def __init__(
         self,
@@ -589,6 +712,7 @@ class SO3LRPotential(PotentialWrapper):
         dtype=None,
         model: str = "so3lr-1",
         charge: float = 0.0,
+        spin: float = 1.0,
         capacity_multiplier: float = 1.25,
         buffer_size_multiplier_sr: float = 1.25,
         buffer_size_multiplier_lr: float = 1.25,
@@ -607,6 +731,9 @@ class SO3LRPotential(PotentialWrapper):
                 ``"so3lr"``, ``"so3lr-s"``, ``"so3lr-m"``, ``"so3lr-l"``)
                 still work but are deprecated.
             charge: Total system charge.
+            spin: Spin multiplicity 2S+1 (default 1). Only the v2 models
+                (so3lr-2-s/m/l) are spin-aware; they receive the number of
+                unpaired electrons (multiplicity - 1). v1 refuses spin != 1.
             capacity_multiplier: Accepted for backward compatibility; unused
                 (SO3LR v2 sizes its neighbor lists from the per-list buffer
                 multipliers).
@@ -639,6 +766,9 @@ class SO3LRPotential(PotentialWrapper):
         self._species = jnp.array(species)
         self._lr_cutoff = lr_cutoff
         self._charge = charge
+        # SO3LR's spin input is the number of unpaired electrons (2S); MARS
+        # takes the multiplicity 2S+1 everywhere.
+        self._num_unpaired = float(spin) - 1.0
         self._box = None  # gas-phase; extend for PBC later
 
         patched_kwargs = {}
@@ -696,6 +826,30 @@ class SO3LRPotential(PotentialWrapper):
                 stacklevel=2,
             )
 
+        # Only the v2 models were trained with spin. v1 has a spin input that
+        # was never trained, so it always gets 0 unpaired electrons and
+        # open-shell requests are refused rather than silently mis-modelled.
+        is_v1 = resolved_model == "so3lr" or not supports_model
+        validate_model_inputs(
+            "SO3LR v1" if is_v1 else f"SO3LR {resolved_model}",
+            np.asarray(species),
+            charge,
+            spin,
+            elements=(
+                self._SO3LR_V1_ELEMENTS
+                if is_v1
+                else (self._SO3LR_V2_ELEMENTS if resolved_model.startswith("so3lr-") else None)
+            ),
+            spin_aware=not is_v1,
+            hint=(
+                ""
+                if not is_v1
+                else "SO3LR v1 is closed-shell only and covers H C N O F P S Cl; the v2 "
+                "models (--so3lr-model so3lr-2-s / so3lr-2-m / so3lr-2-l) are spin-aware and "
+                "cover more elements."
+            ),
+        )
+
         # ---- build potential ------------------------------------------------
         potential = _So3lrPotential(**pot_kwargs)
 
@@ -714,6 +868,8 @@ class SO3LRPotential(PotentialWrapper):
             fractional_coordinates=False,
             total_charge=self._charge,
         )
+        if "num_unpaired_electrons" in tjm_params:
+            tjm_kwargs["num_unpaired_electrons"] = 0.0 if is_v1 else self._num_unpaired
         # The minimum-cell-size kwarg was split per neighbor list (sr/lr) in the
         # stable release and merged into one in the developing release.
         if "minimum_cell_size_multiplier" in tjm_params:
@@ -885,6 +1041,21 @@ class MACEPotential(PotentialWrapper):
       (IR falls back to finite differences) and ``charge`` / ``spin`` are
       honoured.
 
+    The ``backend`` argument overrides the automatic choice:
+
+    * ``'auto'`` (default) — as above.
+    * ``'mace-jax'`` — the ACEsuit ``mace-jax`` conversion (the default for
+      every family except OMol).
+    * ``'jaxmd'`` — the jax-md MACE interface (``jax_md._nn.mace``, jax-md
+      PR #390 by @DRosen285): jax-md's converter and featurizer.  Needs the
+      ``mace-jax`` commit pinned by jax-md (``fe19806``).
+    * ``'torch'`` — the mace-torch ASE calculator for any family (no
+      analytical Hessians).
+
+    Pure-JAX MACE-OMol (``backend='mace-jax'`` or ``'jaxmd'``) is accepted
+    but warns: as of Oct 2026 neither conversion reproduces mace-torch (see
+    ``validation/README.md``).
+
     Foundation families (``foundation`` argument):
 
     * ``'off'``   — MACE-OFF23, organic molecules (default).
@@ -918,9 +1089,16 @@ class MACEPotential(PotentialWrapper):
             (e.g. ``omol``); ignored otherwise.  Default ``0``.
         spin: Spin multiplicity (1 = singlet, 2 = doublet, ...).  Only used by
             spin-aware models (e.g. ``omol``); ignored otherwise.  Default ``1``.
+        backend: ``'auto'``, ``'mace-jax'``, ``'jaxmd'`` or ``'torch'`` (see
+            above).
     """
 
     _VALID_FOUNDATIONS = ("mp", "off", "off24", "anicc", "omol")
+    _VALID_BACKENDS = ("auto", "mace-jax", "jaxmd", "torch")
+
+    #: Whether a pure-JAX MACE-OMol conversion reproduces mace-torch. While
+    #: False, ``backend='auto'`` keeps OMol on the PyTorch calculator.
+    _OMOL_JAX_VALIDATED = False
 
     #: MACE-OFF24 checkpoints. Upstream publishes only the medium size, and
     #: mace-torch has no ``mace_off24`` loader, so OFF24 is loaded through the
@@ -964,9 +1142,15 @@ class MACEPotential(PotentialWrapper):
         cache_dir: str | None = None,
         charge: float = 0.0,
         spin: float = 1.0,
+        backend: str = "auto",
         **kwargs,
     ):
         foundation = str(foundation).lower()
+        backend = str(backend or "auto").lower().replace("_", "-")
+        if backend not in self._VALID_BACKENDS:
+            raise ValueError(
+                f"Unknown MACE backend '{backend}'. Choose from: {', '.join(self._VALID_BACKENDS)}"
+            )
         if foundation not in self._VALID_FOUNDATIONS:
             raise ValueError(
                 f"Unknown MACE foundation '{foundation}'. "
@@ -994,11 +1178,41 @@ class MACEPotential(PotentialWrapper):
         self._spin = float(spin)
         self._initialized = False
 
-        # OMol uses the PyTorch backend (see class docstring); all other
-        # families use the JAX-native conversion path.
-        if foundation == "omol":
+        self._foundation = foundation
+        if foundation != "omol" and float(spin) != 1.0:
+            raise ValueError(
+                f"MACE-{foundation.upper()} is a closed-shell model with no spin input; "
+                "use --mace-foundation omol (or uma / orb / so3lr v2 / dxtb) for open-shell systems."
+            )
+        if foundation != "omol" and float(charge) != 0.0:
+            warnings.warn(
+                f"MACE-{foundation.upper()} has no charge input; charge={charge} is ignored.",
+                UserWarning,
+            )
+        if backend == "auto":
+            if foundation == "omol" and not self._OMOL_JAX_VALIDATED:
+                backend = "torch"
+            else:
+                backend = "mace-jax"
+        if foundation == "omol" and backend in ("mace-jax", "jaxmd"):
+            source = "jax-md (jax_md._nn.mace)" if backend == "jaxmd" else "ACEsuit mace-jax"
+            warnings.warn(
+                f"MACE-OMol is running in pure JAX through {source}. This conversion is not "
+                "validated against mace-torch (differences of ~1 eV were measured in Oct 2026). "
+                "Use backend='torch' (CLI: --mace-backend torch) for the reference "
+                "implementation.",
+                UserWarning,
+            )
+        self._source = backend
+
+        if backend == "torch":
+            if foundation == "off24":
+                raise ValueError("MACE-OFF24 has no mace-torch loader; use backend='mace-jax'.")
             self._backend = "torch"
             self._torch_init(foundation, model, dtype)
+        elif backend == "jaxmd":
+            self._backend = "jax"
+            self._convert_jaxmd(foundation, model)
         else:
             self._backend = "jax"
             self._load_or_convert(foundation, model, dtype, cache_dir)
@@ -1048,6 +1262,11 @@ class MACEPotential(PotentialWrapper):
         if underlying is None:
             underlying = getattr(self._calculator, "model", None)
         self._r_max = float(getattr(underlying, "r_max", 6.0))
+        z_table = getattr(underlying, "atomic_numbers", None)
+        if z_table is not None:
+            self._check_elements(
+                [int(z) for z in np.asarray(z_table.cpu() if hasattr(z_table, "cpu") else z_table)]
+            )
 
     # ------------------------------------------------------------------
     # Model loading / conversion (JAX-native families)
@@ -1106,6 +1325,33 @@ class MACEPotential(PotentialWrapper):
         digest = hashlib.sha1(text.encode()).hexdigest()[:8]
         return f"{stem}-{digest}" if stem else digest
 
+    def _convert_jaxmd(self, foundation, model):
+        """Convert a foundation model with the jax-md MACE interface (no cache).
+
+        Uses ``jax_md._nn.mace.mace_jax_from_torch.convert_foundation_model``
+        (jax-md PR #390); the resulting model is evaluated by the same
+        free-space graph code as the ``mace-jax`` backend.
+        """
+        try:
+            from jax_md._nn.mace.mace_jax_from_torch import convert_foundation_model
+        except ImportError as exc:
+            raise ImportError(
+                "backend='jaxmd' needs jax-md main (jax_md._nn.mace), mace-torch and the "
+                "mace-jax commit pinned by jax-md:\n"
+                "  pip install 'git+https://github.com/jax-md/jax-md.git'\n"
+                "  pip install 'git+https://github.com/ACEsuit/mace-jax@fe19806'\n"
+                f"(import error: {exc})"
+            )
+        if foundation == "off24":
+            raise ValueError("backend='jaxmd' does not know MACE-OFF24; use backend='mace-jax'.")
+        if foundation == "omol" and model in (None, "small", "medium", "large"):
+            model = "extra_large"
+        self._patch_cuequivariance()
+        graphdef, state, config = convert_foundation_model(foundation, model)
+        self._graphdef = graphdef
+        self._state = state
+        self._set_species_tables(config)
+
     def _load_or_convert(self, foundation, model, dtype, cache_dir):
         """Load converted JAX weights from cache, or convert from torch once.
 
@@ -1148,7 +1394,11 @@ class MACEPotential(PotentialWrapper):
                 from mace.tools.scripts_utils import extract_config_mace_model
                 from mace_jax.cli import mace_jax_from_torch as _mjft
                 from mace_jax.cli.mace_jax_from_torch import convert_model
-                from mace_jax.modules.wrapper_ops import CuEquivarianceConfig
+
+                try:  # mace-jax <= fe19806; renamed EquivarianceConfig later
+                    from mace_jax.modules.wrapper_ops import CuEquivarianceConfig
+                except ImportError:
+                    CuEquivarianceConfig = None
                 from mace_jax.nnx_utils import (
                     state_to_pure_dict,
                     state_to_serializable_dict,
@@ -1197,12 +1447,12 @@ class MACEPotential(PotentialWrapper):
                 raise RuntimeError(config["error"])
             config["torch_model_class"] = torch_model.__class__.__name__
 
-            cueq_config = CuEquivarianceConfig(enabled=False)
-            graphdef, state, _ = convert_model(
-                torch_model,
-                config,
-                cueq_config=cueq_config,
-            )
+            # Plain e3nn kernels (no cuEquivariance). Newer mace-jax takes an
+            # ``equivariance_config`` whose default is already the e3nn backend.
+            convert_kwargs = {}
+            if CuEquivarianceConfig is not None:
+                convert_kwargs["cueq_config"] = CuEquivarianceConfig(enabled=False)
+            graphdef, state, _ = convert_model(torch_model, config, **convert_kwargs)
             self._graphdef = graphdef
             self._state = state_to_pure_dict(state)
 
@@ -1221,13 +1471,34 @@ class MACEPotential(PotentialWrapper):
 
             del torch_model
 
-        # ---- Species / z_table mapping (from config; both paths) -----------
+        self._set_species_tables(config)
+
+    def _check_elements(self, z_table):
+        """Elements, charge and spin against what this MACE model supports."""
+        omol = self._foundation == "omol"
+        validate_model_inputs(
+            f"MACE-{self._foundation.upper()}",
+            self._species,
+            self._charge,
+            self._spin,
+            elements=z_table,
+            # Non-OMol families ignore the charge (with a warning, see __init__)
+            # but it still enters the electron-count check.
+            charge_aware=True,
+            spin_aware=omol,
+        )
+
+    def _set_species_tables(self, config):
+        """Cutoff, element table and charge/spin embeddings from a MACE config."""
         self._r_max = float(config["r_max"])
+        specs = config.get("embedding_specs") or {}
+        self._embedding_names = tuple(specs.keys()) if isinstance(specs, dict) else ()
         atomic_numbers = config.get("atomic_numbers", [])
         if hasattr(atomic_numbers, "__len__") and len(atomic_numbers) > 0:
             self._z_table = sorted(int(z) for z in atomic_numbers)
         else:
             self._z_table = sorted(set(int(z) for z in self._species))
+        self._check_elements(self._z_table)
         self._num_species = len(self._z_table)
         self._z_to_index = {z: i for i, z in enumerate(self._z_table)}
         self._species_indices = jnp.array(
@@ -1328,6 +1599,17 @@ class MACEPotential(PotentialWrapper):
         ext_ptr = jnp.array([0, n_atoms, n_atoms + 1], dtype=jnp.int32)
         ext_cell = jnp.zeros((2, 3, 3), dtype=dt)
 
+        # Per-graph charge / spin embeddings (MACE-OMol). The ghost graph gets
+        # a neutral singlet so it stays a valid input.
+        graph_features = {}
+        if "total_charge" in self._embedding_names:
+            graph_features["total_charge"] = jnp.array([self._charge, 0.0], dtype=dt)
+        if "total_spin" in self._embedding_names:
+            graph_features["total_spin"] = jnp.array([self._spin, 1.0], dtype=dt)
+        unknown = set(self._embedding_names) - set(graph_features)
+        if unknown:
+            raise NotImplementedError(f"Unsupported MACE embedding inputs: {sorted(unknown)}")
+
         def energy_fn(positions, neighbor=None, **kwargs):
             # Neighbor indices: (n_atoms, max_neighbors); padding == n_atoms
             nbr_idx = neighbor if neighbor is not None else self._nbrs.idx
@@ -1365,6 +1647,7 @@ class MACEPotential(PotentialWrapper):
                 "cell": ext_cell,
                 "batch": ext_batch,
                 "ptr": ext_ptr,
+                **graph_features,
             }
             out, _ = graphdef.apply(state)(
                 data,
@@ -1516,6 +1799,7 @@ class DXTBPotential(PotentialWrapper):
         method: str = "gfn1",
         charge: float = 0.0,
         dtype=None,
+        spin: float = 1.0,
         **kwargs,
     ):
         try:
@@ -1559,6 +1843,17 @@ class DXTBPotential(PotentialWrapper):
         self._numbers = torch.from_numpy(species_np).to(dtype=torch.int, device=self._device)
         self._charge_tensor = torch.tensor(
             float(charge), dtype=self._torch_dtype, device=self._device
+        )
+        # dxtb's ``spin`` is the number of unpaired electrons (multiplicity - 1).
+        self._spin_unpaired = int(round(float(spin))) - 1
+        # GFN1/GFN2-xTB are parameterised for H-Rn (Z = 1-86).
+        validate_model_inputs(
+            f"dxtb {self._method.upper()}",
+            species_np,
+            charge,
+            spin,
+            elements=range(1, 87),
+            spin_aware=True,
         )
         opts = {"verbosity": 0}
 
@@ -1609,6 +1904,7 @@ class DXTBPotential(PotentialWrapper):
 
         calc = self._calc
         charge = self._charge_tensor
+        spin = self._spin_unpaired
         ang2bohr = self._ANGSTROM_TO_BOHR
         ha2ev = self._HARTREE_TO_EV
         torch_dtype = self._torch_dtype
@@ -1626,7 +1922,7 @@ class DXTBPotential(PotentialWrapper):
                 requires_grad=True,
             )
             calc.reset()
-            energy_ha = calc.get_energy(pos_bohr, chrg=charge)
+            energy_ha = calc.get_energy(pos_bohr, chrg=charge, spin=spin)
             forces_ha_per_bohr = calc.get_forces(pos_bohr, energy=energy_ha)
             e_ev = np.array(float(energy_ha.detach().cpu()) * ha2ev, dtype=np_dtype)
             f_ev_ang = np.array(
@@ -1665,6 +1961,7 @@ class DXTBPotential(PotentialWrapper):
 
         calc = self._calc
         charge = self._charge_tensor
+        spin = self._spin_unpaired
         ang2bohr = self._ANGSTROM_TO_BOHR
         ha2ev = self._HARTREE_TO_EV
         torch_dtype = self._torch_dtype
@@ -1683,11 +1980,11 @@ class DXTBPotential(PotentialWrapper):
                 requires_grad=True,
             )
             calc.reset()
-            energy_ha = calc.get_energy(pos_bohr, chrg=charge)
+            energy_ha = calc.get_energy(pos_bohr, chrg=charge, spin=spin)
             forces_ha_per_bohr = calc.get_forces(pos_bohr, energy=energy_ha)
 
             # Per-atom Mulliken charges (orbital → atom reduction)
-            charges_orb = calc.get_charges(pos_bohr, chrg=charge)
+            charges_orb = calc.get_charges(pos_bohr, chrg=charge, spin=spin)
             charges_atom = calc.ihelp.reduce_orbital_to_atom(charges_orb)
             q_np = np.array(
                 charges_atom.detach().cpu().numpy(),
@@ -1880,3 +2177,12 @@ class ConfinementPotential(PotentialWrapper):
     @property
     def uses_neighbor_lists(self) -> bool:
         return False
+
+
+# ============================================================================
+# jax-md model zoo (UMA, ORB, ANI, AIMNet2, AceFF, SO3LR port)
+# ============================================================================
+# Imported last so the registrations see the fully defined base classes.
+# The module itself only imports jax-md lazily, inside each wrapper.
+from . import potentials_jaxmd as _potentials_jaxmd  # noqa: E402,F401
+from . import potentials_mm as _potentials_mm  # noqa: E402,F401

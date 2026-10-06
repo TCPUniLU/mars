@@ -27,16 +27,11 @@ def _log_crest_citation():
     log_message(
         "This conformational search workflow is inspired by CREST " "(Grimme and co-workers)."
     )
-    log_message("If you use it, please cite the CREST papers:")
+    log_message("If you use it, please cite CREST:")
     log_message(
         "  P. Pracht, F. Bohle, S. Grimme, "
         "Phys. Chem. Chem. Phys. 22 (2020) 7169-7192. "
         "doi:10.1039/C9CP06869D"
-    )
-    log_message(
-        "  P. Pracht, S. Grimme, C. Bannwarth, et al., "
-        "J. Chem. Phys. 160 (2024) 114110. "
-        "doi:10.1063/5.0197592"
     )
     log_message("")
 

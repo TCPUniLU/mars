@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 
 from .auto_config import EV_TO_KCALMOL
 from .log import log_error, log_header, log_info, log_message, log_warning
-from .potentials import get_potential
+from .potentials import atomic_dipoles, get_potential, jit_charges
 from .utils import (
     KB_EV_PER_K,
     _is_jax_oom,
@@ -118,7 +118,12 @@ def _build_ir_potential(
     potential_kwargs = {}
     options = potential_options or {}
 
-    if potential_name == "so3lr":
+    if options.get("extra_kwargs") is not None:
+        # Potentials whose kwargs the CLI resolved up front (jax-md models,
+        # classical force fields): only the elements are added here.
+        potential_kwargs.update(options["extra_kwargs"], species=numbers)
+        potential_name = options.get("registry_name") or potential_name
+    elif potential_name == "so3lr":
         potential_kwargs.update(
             species=numbers,
             lr_cutoff=lr_cutoff,
@@ -128,6 +133,8 @@ def _build_ir_potential(
         )
         if compute_charges:
             potential_kwargs["compute_charges"] = True
+        if options.get("spin") is not None:
+            potential_kwargs["spin"] = options["spin"]
     elif potential_name == "mace":
         potential_kwargs.update(
             species=numbers,
@@ -143,6 +150,8 @@ def _build_ir_potential(
             potential_kwargs["cache_dir"] = options["mace_cache_dir"]
         if options.get("mace_spin") is not None:
             potential_kwargs["spin"] = options["mace_spin"]
+        if options.get("mace_backend"):
+            potential_kwargs["backend"] = options["mace_backend"]
     elif potential_name == "dxtb":
         potential_kwargs.update(
             species=numbers,
@@ -151,18 +160,29 @@ def _build_ir_potential(
         )
         if options.get("dxtb_method"):
             potential_kwargs["method"] = options["dxtb_method"]
+        if options.get("spin") is not None:
+            potential_kwargs["spin"] = options["spin"]
 
     try:
-        check_charge({"numbers": numbers}, charge=charge)
+        check_charge({"numbers": numbers}, charge=charge, multiplicity=options.get("spin") or 1)
     except ValueError as exc:
         log_error(str(exc))
         sys.exit(1)
     try:
         potential = get_potential(potential_name, **potential_kwargs)
-    except ValueError:
-        log_error(f"Unknown potential '{potential_name}'")
+    except (ValueError, FileNotFoundError) as exc:
+        log_error(f"Could not build potential '{potential_name}': {exc}")
         sys.exit(1)
     return potential
+
+
+def _initialize_or_exit(potential, positions):
+    """``potential.initialize`` with configuration errors reported, not raised."""
+    try:
+        potential.initialize(positions)
+    except ValueError as exc:
+        log_error(f"Could not initialise the potential: {exc}")
+        sys.exit(1)
 
 
 # ============================================================================
@@ -244,7 +264,7 @@ def compute_hessian_and_dipole_derivs(
             def grad_and_dipole(pf):
                 pos = pf.reshape(n_atoms, 3)
                 g = jax.grad(lambda p: energy_fn(p.reshape(n_atoms, 3)))(pf)
-                d = jnp.sum(charges_fn(pos)[:, None] * pos, axis=0)
+                d = jnp.sum(atomic_dipoles(charges_fn, pos), axis=0)
                 return jnp.concatenate([g, d])
 
             jac_fn = (
@@ -276,7 +296,7 @@ def compute_hessian_and_dipole_derivs(
         def grad_and_dipole_sel(x_sel):
             g = jax.grad(energy_sel)(x_sel)
             full_pos = _scatter_full(x_sel)
-            d = jnp.sum(charges_fn(full_pos)[:, None] * full_pos, axis=0)
+            d = jnp.sum(atomic_dipoles(charges_fn, full_pos), axis=0)
             return jnp.concatenate([g, d])
 
         jac_fn = (
@@ -384,10 +404,8 @@ def compute_hessian_and_dipole_derivs_fd(
         hessian[:, j_local] = (grad_plus[sel_dof] - grad_minus[sel_dof]) / (2.0 * displacement)
 
         if charges_fn is not None:
-            q_plus = np.array(charges_fn(p_plus_jax))
-            q_minus = np.array(charges_fn(p_minus_jax))
-            mu_plus = np.sum(q_plus[:, None] * pos_plus.reshape(n_atoms, 3), axis=0)
-            mu_minus = np.sum(q_minus[:, None] * pos_minus.reshape(n_atoms, 3), axis=0)
+            mu_plus = np.asarray(atomic_dipoles(charges_fn, p_plus_jax)).sum(axis=0)
+            mu_minus = np.asarray(atomic_dipoles(charges_fn, p_minus_jax)).sum(axis=0)
             dipole_derivs[j_local] = (mu_plus - mu_minus) / (2.0 * displacement)
 
     hessian = 0.5 * (hessian + hessian.T)
@@ -508,7 +526,7 @@ def compute_dipole_derivatives(
     if atom_indices is None:
 
         def dipole_moment(pos):
-            return jnp.sum(charges_fn(pos)[:, None] * pos, axis=0)
+            return jnp.sum(atomic_dipoles(charges_fn, pos), axis=0)
 
         jacobian_fn = jax.jacrev(dipole_moment)
         dipole_derivs = jacobian_fn(positions)  # (3, n_atoms, 3)
@@ -521,7 +539,7 @@ def compute_dipole_derivatives(
 
     def dipole_moment_sel(x_sel):
         full_pos = base_positions.at[atom_idx_arr].set(x_sel.reshape(k, 3))
-        return jnp.sum(charges_fn(full_pos)[:, None] * full_pos, axis=0)
+        return jnp.sum(atomic_dipoles(charges_fn, full_pos), axis=0)
 
     jacobian_fn = jax.jacrev(dipole_moment_sel)
     dipole_derivs = jacobian_fn(x_sel_flat)  # (3, 3K)
@@ -1731,7 +1749,7 @@ def compute_ir_spectrum(
             compute_charges=True,
             potential_options=potential_options,
         )
-        potential.initialize(positions)
+        _initialize_or_exit(potential, positions)
         result = potential.build_energy_fn(with_charges=True)
 
     if isinstance(result, tuple):
@@ -1756,7 +1774,7 @@ def compute_ir_spectrum(
     # JIT-compile energy function for speed (always on)
     log_info("JIT-compiling energy function...")
     energy_fn_jit = jax.jit(energy_fn)
-    charges_fn_jit = jax.jit(charges_fn) if has_charges else None
+    charges_fn_jit = jit_charges(charges_fn) if has_charges else None
 
     # Optimize geometry if requested
     if optimize:
@@ -1911,7 +1929,7 @@ def compute_ir_spectrum(
     if has_charges:
         # Compute initial dipole moment: μ = Σ q_i · r_i over the full system
         initial_charges = charges_fn_jit(positions)
-        initial_dipole = jnp.sum(initial_charges[:, None] * positions, axis=0)
+        initial_dipole = jnp.sum(atomic_dipoles(charges_fn_jit, positions), axis=0)
         log_info(
             f"Initial dipole moment: ({float(initial_dipole[0]):.4f}, {float(initial_dipole[1]):.4f}, {float(initial_dipole[2]):.4f}) e·Å"
         )
@@ -2159,7 +2177,7 @@ def compute_ir_from_md(
             compute_charges=True,
             potential_options=potential_options,
         )
-        potential.initialize(positions)
+        _initialize_or_exit(potential, positions)
         result = potential.build_energy_fn(with_charges=True)
 
     if isinstance(result, tuple):
@@ -2309,13 +2327,11 @@ def compute_ir_from_md(
             def save_frame(state_data):
                 s_local, nbrs_local, dip_local, traj_local = state_data
                 nbr_kwargs_local = potential.get_neighbor_kwargs(nbrs_local)
-                charges = charges_fn(s_local.position, **nbr_kwargs_local)
+                mu_atoms = atomic_dipoles(charges_fn, s_local.position, **nbr_kwargs_local)
                 if dipole_atoms_idx is not None:
-                    pos_sel = s_local.position[dipole_atoms_idx]
-                    q_sel = charges[dipole_atoms_idx]
-                    dipole = jnp.sum(q_sel[:, None] * pos_sel, axis=0)
+                    dipole = jnp.sum(mu_atoms[dipole_atoms_idx], axis=0)
                 else:
-                    dipole = jnp.sum(charges[:, None] * s_local.position, axis=0)
+                    dipole = jnp.sum(mu_atoms, axis=0)
                 dip_local = dip_local.at[frame_idx].set(dipole)
                 traj_local = traj_local.at[frame_idx].set(s_local.position)
                 return dip_local, traj_local
@@ -2714,7 +2730,7 @@ def compute_ir_from_md_parallel(
             compute_charges=True,
             potential_options=potential_options,
         )
-        potential.initialize(positions_batch[0])
+        _initialize_or_exit(potential, positions_batch[0])
         pot_result = potential.build_energy_fn(with_charges=True)
 
     if isinstance(pot_result, tuple):

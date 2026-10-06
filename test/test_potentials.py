@@ -302,3 +302,238 @@ class TestSO3LRVersionAdaptive:
         assert e_dep == pytest.approx(
             e_cur
         ), f"{deprecated!r} and {current!r} should resolve to the identical model"
+
+
+# ============================================================================
+# jax-md model zoo, MACE backends, CLI wiring
+# ============================================================================
+
+_WATER_DIMER = jnp.array(
+    [
+        [0.0, 0.0, 0.0],
+        [0.757, 0.586, 0.0],
+        [-0.757, 0.586, 0.0],
+        [0.0, 0.0, 2.9],
+        [0.757, 0.586, 2.9],
+        [-0.757, 0.586, 2.9],
+    ]
+)
+_WATER_Z = [8, 1, 1, 8, 1, 1]
+
+
+class TestJaxMDRegistry:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "uma",
+            "orb",
+            "ani",
+            "aimnet2",
+            "aceff",
+            "so3lr_jaxmd",
+            "mm",
+            "amber",
+            "charmm",
+            "opls",
+            "amoeba",
+        ],
+    )
+    def test_registered(self, name):
+        assert name in list_potentials()
+
+    def test_ani_rejects_unsupported_elements(self):
+        with pytest.raises(ValueError, match="does not support element"):
+            get_potential("ani", species=[26, 1])
+
+    def test_ani_rejects_charge(self):
+        with pytest.raises(ValueError, match="no charge input"):
+            get_potential("ani", species=[8, 1, 1], charge=-1)
+
+    def test_uma_rejects_unknown_task(self):
+        with pytest.raises(ValueError, match="Unknown UMA task"):
+            get_potential("uma", species=[8, 1, 1], task="nonsense")
+
+    def test_mace_rejects_unknown_backend(self):
+        with pytest.raises(ValueError, match="Unknown MACE backend"):
+            get_potential("mace", species=[8, 1, 1], backend="nonsense")
+
+
+def _jaxmd_model_available(module, checkpoint):
+    import importlib
+    from pathlib import Path
+
+    try:
+        importlib.import_module(module)
+    except Exception:
+        return False
+    return (Path.home() / ".cache" / "jax_md" / checkpoint).is_file()
+
+
+@pytest.mark.requires_jaxmd_ml
+@pytest.mark.parametrize(
+    "name, module, checkpoint",
+    [
+        ("ani", "jax_md._nn.ani", "ani2x_ensemble.eqx"),
+        ("aimnet2", "jax_md._nn.aimnet2", "aimnet2.eqx"),
+        ("aceff", "jax_md._nn.aceff", "aceff_v2.0.eqx"),
+        ("so3lr_jaxmd", "jax_md._nn.so3lr", "so3lr.eqx"),
+    ],
+)
+def test_jaxmd_model_contract(name, module, checkpoint):
+    """Energy, gradient, jit and neighbor updates through the MARS interface."""
+    if not _jaxmd_model_available(module, checkpoint):
+        pytest.skip(f"{module} or its checkpoint is not available")
+    jax.config.update("jax_enable_x64", True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        pot = get_potential(name, species=_WATER_Z)
+    pot.initialize(_WATER_DIMER)
+    f = pot.build_energy_fn()
+    nb = pot.allocate_neighbors(_WATER_DIMER)
+    kw = pot.get_neighbor_kwargs(nb)
+    e = jax.jit(f)(_WATER_DIMER, **kw)
+    g = jax.jit(jax.grad(f))(_WATER_DIMER, **kw)
+    assert np.isfinite(float(e))
+    assert np.all(np.isfinite(np.asarray(g)))
+    # Translation invariance and a neighbor update that keeps the energy.
+    nb2 = pot.update_neighbors(_WATER_DIMER + 1.0, nb)
+    e2 = f(_WATER_DIMER + 1.0, **pot.get_neighbor_kwargs(nb2))
+    assert float(e2) == pytest.approx(float(e), abs=1e-6)
+    overflow = nb2[0].did_buffer_overflow if isinstance(nb2, tuple) else nb2.did_buffer_overflow
+    assert not bool(overflow)
+
+
+class TestCLIPotentialSpec:
+    def _args(self, **kw):
+        from argparse import Namespace
+
+        base = dict(
+            potential="so3lr",
+            charge=0.0,
+            spin=1.0,
+            float64=False,
+            so3lr_backend="so3lr",
+            mace_backend="auto",
+            uma_model="uma-s-1p2",
+            uma_task="omol",
+            ml_model=None,
+            prmtop=None,
+            psf=None,
+            ff_params=None,
+            top=None,
+            gmx_include=None,
+            ff_xml=None,
+            ff_pdb=None,
+            ff_coords=None,
+            amoeba_polarization="mutual",
+            tinker_key=None,
+            input="mol.xyz",
+        )
+        base.update(kw)
+        return Namespace(**base)
+
+    def test_default_so3lr_is_not_rerouted(self):
+        from mars.cli._common import extra_potential_spec
+
+        assert extra_potential_spec(self._args()) is None
+
+    def test_so3lr_jaxmd_backend(self):
+        from mars.cli._common import extra_potential_spec
+
+        name, kw = extra_potential_spec(self._args(so3lr_backend="jaxmd", charge=-1.0))
+        assert name == "so3lr_jaxmd" and kw["charge"] == -1.0
+
+    def test_ml_model_path_vs_name(self):
+        from mars.cli._common import extra_potential_spec
+
+        _, kw = extra_potential_spec(self._args(potential="aceff", ml_model="aceff-jax-1.1"))
+        assert kw["model"] == "aceff-jax-1.1"
+        _, kw = extra_potential_spec(self._args(potential="orb", ml_model="/x/orb.eqx"))
+        assert kw["model_path"] == "/x/orb.eqx"
+
+    def test_mm_files_and_pdb_input(self):
+        from mars.cli._common import extra_potential_spec
+
+        name, kw = extra_potential_spec(
+            self._args(potential="amoeba", input="w.pdb", amoeba_polarization="direct")
+        )
+        assert name == "amoeba" and kw["pdb"] == "w.pdb" and kw["polarization"] == "direct"
+        name, kw = extra_potential_spec(self._args(potential="mm", prmtop="a.prmtop"))
+        assert kw["family"] == "amber" and kw["prmtop"] == "a.prmtop"
+
+
+def test_so3lr_jaxmd_is_closed_shell():
+    """jax-md ships SO3LR v1, whose spin input was never trained."""
+    with pytest.raises(ValueError, match="closed-shell only"):
+        get_potential("so3lr_jaxmd", species=[6, 1, 1, 1], spin=2)
+
+
+@pytest.mark.requires_so3lr
+def test_so3lr_v1_refuses_spin():
+    if not _so3lr_available():
+        pytest.skip("so3lr not installed")
+    with pytest.raises(ValueError, match="closed-shell only"):
+        get_potential("so3lr", species=[6, 1, 1, 1], model="so3lr-1", spin=2)
+
+
+class TestModelInputValidation:
+    """Elements, charge and spin are checked against what each model supports."""
+
+    @pytest.mark.parametrize(
+        "name, kwargs, match",
+        [
+            ("ani", dict(species=[26, 1]), "does not support element"),
+            ("ani", dict(species=[8, 1], charge=-1), "no charge input"),
+            ("aimnet2", dict(species=[26, 8]), "does not support element"),
+            ("aimnet2", dict(species=[6, 1, 1, 1], spin=2), "closed-shell only"),
+            ("aceff", dict(species=[11, 17]), "does not support element"),
+            ("orb", dict(species=[92, 8, 8]), "does not support element"),
+            ("orb", dict(species=[6, 1, 1, 1]), "inconsistent with multiplicity"),
+            ("uma", dict(species=[6, 1, 1, 1], spin=2, task="omat"), "closed-shell only"),
+            ("uma", dict(species=[92, 8], task="omol"), "does not support element"),
+            ("so3lr_jaxmd", dict(species=[35, 1]), "does not support element"),
+        ],
+    )
+    def test_rejected(self, name, kwargs, match):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with pytest.raises(ValueError, match=match):
+                get_potential(name, **kwargs)
+
+    @pytest.mark.parametrize(
+        "name, kwargs",
+        [
+            ("aimnet2", dict(species=[8, 1], charge=-1)),
+            ("orb", dict(species=[6, 1, 1, 1], spin=2)),
+            ("uma", dict(species=[6, 1, 1, 1], spin=2, task="omol")),
+            ("uma", dict(species=[92, 8], task="omat")),
+        ],
+    )
+    def test_accepted(self, name, kwargs):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            get_potential(name, **kwargs)
+
+    def test_validator_messages(self):
+        from mars.potentials import validate_model_inputs
+
+        with pytest.raises(ValueError, match=r"Supported: H \(Z=1\)"):
+            validate_model_inputs("X", [1, 26], elements={1})
+        validate_model_inputs("X", [8, 1], charge=-1, elements={1, 8})
+
+
+@pytest.mark.requires_so3lr
+def test_so3lr_v2_elements_follow_qcml():
+    if not _so3lr_supports_model():
+        pytest.skip("so3lr v2 models not installed")
+    with pytest.raises(ValueError, match="does not support element"):
+        get_potential("so3lr", species=[56, 8], model="so3lr-2-m")
+    get_potential("so3lr", species=[26, 8], model="so3lr-2-m")
+
+
+@pytest.mark.parametrize("name", ["aimnet2", "aceff", "so3lr_jaxmd"])
+def test_jaxmd_models_with_charges_declare_a_charge_tap(name):
+    """These models feed IR intensities; losing the charge tap would silently drop them."""
+    from mars.potentials import _POTENTIAL_REGISTRY
+
+    assert _POTENTIAL_REGISTRY[name].CHARGE_TAP is not None

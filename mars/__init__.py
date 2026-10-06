@@ -11,7 +11,7 @@ This lets lightweight, JAX-free tools (e.g. ``mars viewer``) run in
 environments without a working JAX/GPU stack.
 """
 
-__version__ = "0.1.1"
+__version__ = "1.0.0"
 
 # ============================================================================
 # Suppress external package warnings by default
@@ -199,6 +199,16 @@ _LAZY_SUBMODULES = {
         "load_solvent",
         "SOLVENT_DB",
     ),
+    "forcefields": (
+        "MMSystem",
+        "load_amber",
+        "load_charmm",
+        "load_gromacs",
+        "load_opls",
+        "load_amoeba",
+        "load_openmm_xml",
+        "load_openmm_system",
+    ),
 }
 
 # Names that are exposed under a different alias than in their submodule.
@@ -208,7 +218,7 @@ _LAZY_ALIASES = {
 }
 
 # Submodules exposed as attributes themselves (e.g. ``mars.ir``).
-_LAZY_MODULE_ATTRS = ("ir",)
+_LAZY_MODULE_ATTRS = ("ir", "forcefields")
 
 # Reverse map: public name -> submodule name.
 _NAME_TO_SUBMODULE = {name: sub for sub, names in _LAZY_SUBMODULES.items() for name in names}
@@ -363,6 +373,16 @@ __all__ = [
     "COVALENT_RADII",
     # IR submodule
     "ir",
+    # Classical force fields
+    "forcefields",
+    "MMSystem",
+    "load_amber",
+    "load_charmm",
+    "load_gromacs",
+    "load_opls",
+    "load_amoeba",
+    "load_openmm_xml",
+    "load_openmm_system",
     # Convenience
     "quick_conformer_search",
     "thorough_conformer_search",

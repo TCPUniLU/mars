@@ -23,9 +23,11 @@ SUBCOMMANDS
   optimize    Structure optimization — local minimum or stationary point
   solvation   Explicit solvation — layer-by-layer shell construction
   viewer      Interactive 3D viewer — molecule, IR results, or NCI wall
+  gui         Local web GUI — run jobs and view results in the browser
 
 COMMON OPTIONS (available on every subcommand)
-  --potential {so3lr,mace,dxtb,nci,harmonic,lj,valence}
+  --potential {so3lr,mace,dxtb,uma,orb,ani,aimnet2,aceff,amber,charmm,opls,amoeba,
+               mm,confinement,harmonic,lj,valence}
                     Potential to use (default: so3lr)
   --mace-foundation {mp,off,off24,anicc,omol} · --mace-model NAME
                     MACE selector  (only with --potential mace)
@@ -33,6 +35,13 @@ COMMON OPTIONS (available on every subcommand)
                     dxtb method    (only with --potential dxtb)
   --so3lr-model NAME|PATH · --lr-cutoff Å
                     SO3LR model (so3lr-1/2-s/2-m/2-l or path) and long-range cutoff
+  --mace-backend {auto,mace-jax,jaxmd,torch} · --so3lr-backend {so3lr,jaxmd}
+                    Implementation switches (defaults: the developers' own code)
+  --uma-model NAME · --uma-task TASK · --ml-model NAME|PATH
+                    UMA / ORB / ANI / AIMNet2 / AceFF (jax-md ports)
+  --prmtop F | --psf F --ff-params F.. | --top F | --ff-xml F.. [--ff-pdb F]
+                    Classical force-field files (amber / charmm / opls / amoeba);
+                    --ff-coords F, --amoeba-polarization {mutual,direct,extrapolated}
   --charge Q        Total molecular charge (default: 0.0)
   --float64         Use 64-bit precision (default: 32-bit; auto-promoted for IR)
   --cpu             Force CPU execution
@@ -172,6 +181,11 @@ Tip: run any subcommand with --help for the full option reference.
     _build_solvation_subparser(subparsers)
     _build_viewer_subparser(subparsers)
 
+    # Local web GUI (`mars gui`) — defined in _gui.py, JAX-free.
+    from ._gui import build_gui_subparser
+
+    build_gui_subparser(subparsers)
+
     # Add conformational search arguments to main parser
     _add_conformer_search_arguments(parser)
 
@@ -252,7 +266,8 @@ Examples:
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, uma, orb, ani, aimnet2, aceff, amber, charmm, "
+        "opls, amoeba, mm, harmonic, lj, valence (default: so3lr)",
     )
     ir_parser.add_argument(
         "--mace-foundation",
@@ -275,11 +290,13 @@ Examples:
         default=None,
         help="Directory for converted JAX weights (default: ~/.cache/mars/mace_jax)",
     )
+    _add_extra_potential_arguments(ir_parser)
     ir_parser.add_argument(
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity for charge/spin-aware MACE models (omol); default 1",
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     ir_parser.add_argument(
         "--dxtb-method",
@@ -723,7 +740,8 @@ Examples:
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, uma, orb, ani, aimnet2, aceff, amber, charmm, "
+        "opls, amoeba, mm, harmonic, lj, valence (default: so3lr)",
     )
     opt_pot_group.add_argument(
         "--mace-foundation",
@@ -746,11 +764,13 @@ Examples:
         default=None,
         help="Directory for converted JAX weights (default: ~/.cache/mars/mace_jax)",
     )
+    _add_extra_potential_arguments(opt_pot_group)
     opt_pot_group.add_argument(
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity for charge/spin-aware MACE models (omol); default 1",
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     opt_pot_group.add_argument(
         "--dxtb-method",
@@ -1106,7 +1126,8 @@ def _add_conformer_search_arguments(parser):
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential to use: so3lr, mace, dxtb, harmonic, lj, valence (default: so3lr)",
+        help="Potential to use: so3lr, mace, dxtb, uma, orb, ani, aimnet2, aceff, amber, charmm, "
+        "opls, amoeba, mm, harmonic, lj, valence (default: so3lr)",
     )
 
     # MACE-specific options
@@ -1132,11 +1153,13 @@ def _add_conformer_search_arguments(parser):
         default=None,
         help="Directory for converted JAX weights (default: ~/.cache/mars/mace_jax)",
     )
+    _add_extra_potential_arguments(mace_group)
     mace_group.add_argument(
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity for charge/spin-aware MACE models (omol); default 1",
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
 
     # dxtb-specific options
@@ -1514,7 +1537,8 @@ Examples:
         "--potential",
         type=str,
         default="so3lr",
-        help="Potential: so3lr, mace, dxtb (default: so3lr)",
+        help="Potential: so3lr, mace, dxtb, uma, orb, ani, aimnet2, aceff, amber, charmm, opls, "
+        "amoeba (default: so3lr)",
     )
     pot_group.add_argument(
         "--charge",
@@ -1557,11 +1581,13 @@ Examples:
         default=None,
         help="Directory for converted JAX weights (default: ~/.cache/mars/mace_jax)",
     )
+    _add_extra_potential_arguments(pot_group)
     pot_group.add_argument(
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity for charge/spin-aware MACE models (omol); default 1",
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     pot_group.add_argument(
         "--dxtb-method",
@@ -1874,3 +1900,104 @@ Controls (IR explorer):
     )
 
     return viewer_parser
+
+
+def _add_extra_potential_arguments(parser):
+    """Options of the jax-md ML potentials, backend switches and force-field files.
+
+    Shared by every subcommand that takes ``--potential`` so the copies cannot
+    drift apart.
+    """
+    # Backend switches (defaults keep the developers' own implementations).
+    parser.add_argument(
+        "--mace-backend",
+        type=str,
+        default="auto",
+        choices=["auto", "mace-jax", "jaxmd", "torch"],
+        help="MACE implementation: auto (default: ACEsuit mace-jax; OMol on mace-torch), "
+        "mace-jax, jaxmd (jax-md interface), torch (mace-torch ASE fallback)",
+    )
+    parser.add_argument(
+        "--so3lr-backend",
+        type=str,
+        default="so3lr",
+        choices=["so3lr", "jaxmd"],
+        help="SO3LR implementation: so3lr (the so3lr package, default) or jaxmd " "(jax-md port)",
+    )
+    # jax-md ML models
+    parser.add_argument(
+        "--uma-model",
+        type=str,
+        default="uma-s-1p2",
+        help="UMA checkpoint: uma-s-1p1, uma-s-1p2 (default), uma-m-1p1, or a path",
+    )
+    parser.add_argument(
+        "--uma-task",
+        type=str,
+        default="omol",
+        choices=["omol", "omat", "oc20", "odac", "omc"],
+        help="UMA task head (default: omol, molecules)",
+    )
+    parser.add_argument(
+        "--ml-model",
+        type=str,
+        default=None,
+        help="Checkpoint for --potential orb/ani/aimnet2/aceff (e.g. aceff-jax-1.1, "
+        "ani2x-jax-ensemble) or a path to a .eqx file",
+    )
+    # Classical force fields: the user's own parameter files
+    parser.add_argument("--prmtop", type=str, default=None, help="AMBER prmtop (--potential amber)")
+    parser.add_argument(
+        "--psf", type=str, default=None, help="CHARMM PSF file (--potential charmm)"
+    )
+    parser.add_argument(
+        "--ff-params",
+        type=str,
+        nargs="+",
+        default=None,
+        metavar="FILE",
+        help="CHARMM parameter/topology/stream files (.prm .rtf .str) (--potential charmm)",
+    )
+    parser.add_argument("--top", type=str, default=None, help="GROMACS topology (--potential opls)")
+    parser.add_argument(
+        "--gmx-include",
+        type=str,
+        default=None,
+        help="Directory with GROMACS force-field folders for #include (default: $GMXDATA/top)",
+    )
+    parser.add_argument(
+        "--ff-xml",
+        type=str,
+        nargs="+",
+        default=None,
+        metavar="FILE",
+        help="OpenMM ForceField XML file(s) (opls/amoeba/mm; amoeba default: amoeba2018.xml)",
+    )
+    parser.add_argument(
+        "--ff-pdb",
+        type=str,
+        default=None,
+        help="PDB with residue/atom names for --ff-xml (default: the input file if .pdb)",
+    )
+    parser.add_argument(
+        "--ff-coords",
+        type=str,
+        default=None,
+        help="Coordinates matching the parameter files (inpcrd/rst7/crd/gro/pdb); "
+        "default: the input structure",
+    )
+    parser.add_argument(
+        "--amoeba-polarization",
+        type=str,
+        default="mutual",
+        choices=["mutual", "direct", "extrapolated"],
+        help="AMOEBA polarization (default: mutual)",
+    )
+    parser.add_argument(
+        "--tinker-key",
+        type=str,
+        nargs="+",
+        default=None,
+        metavar="FILE",
+        help="Tinker .key/.prm files for --potential amoeba with a Tinker .xyz input",
+    )

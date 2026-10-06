@@ -1291,27 +1291,43 @@ def detect_bonds(
 # ============================================================================
 
 
-def check_charge(structure: Dict, charge: int = 0) -> None:
-    """Check whether the molecule's electron count is consistent with a closed-shell system.
+def check_charge(structure: Dict, charge: int = 0, multiplicity: int = 1) -> None:
+    """Check that charge and spin multiplicity are consistent with the electron count.
 
-    The total number of electrons is ``sum(atomic_numbers) - charge``.  If this
-    is odd the molecule would be a radical (unpaired electron), which is not
-    supported by most potentials.
+    The number of electrons is ``sum(atomic_numbers) - charge`` and the number
+    of unpaired electrons is ``multiplicity - 1``. Both must have the same
+    parity (e.g. a neutral radical with an odd electron count needs
+    multiplicity 2, 4, ...), and there cannot be more unpaired electrons than
+    electrons.
 
     Args:
         structure: Structure dictionary with key ``'numbers'``.
         charge: Total molecular charge (default 0).
+        multiplicity: Spin multiplicity 2S+1 (default 1, closed shell).
 
     Raises:
-        ValueError: If the electron count is odd.
+        ValueError: If the combination is impossible.
     """
     total_z = int(np.asarray(structure["numbers"]).sum())
     n_electrons = total_z - int(charge)
-    if n_electrons % 2 != 0:
+    mult = int(round(float(multiplicity)))
+    if mult < 1 or abs(float(multiplicity) - mult) > 1e-9:
+        raise ValueError(f"Spin multiplicity must be a positive integer, got {multiplicity}.")
+    n_unpaired = mult - 1
+    if n_electrons < 0 or n_unpaired > n_electrons:
         raise ValueError(
-            f"Odd number of electrons ({n_electrons}) for charge={charge}. "
-            f"Sum of atomic numbers is {total_z}. "
-            f"Please specify the correct molecular charge with --charge."
+            f"Impossible charge/multiplicity: {n_electrons} electrons for charge={charge} "
+            f"cannot have multiplicity {mult}."
+        )
+    if (n_electrons - n_unpaired) % 2 != 0:
+        hint = (
+            "Set --spin 2 (doublet) for a radical, or correct --charge."
+            if mult == 1
+            else "Correct --charge or --spin."
+        )
+        raise ValueError(
+            f"{n_electrons} electrons (sum of atomic numbers {total_z}, charge={charge}) are "
+            f"inconsistent with multiplicity {mult} ({n_unpaired} unpaired electrons). {hint}"
         )
 
 

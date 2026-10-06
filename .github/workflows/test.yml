@@ -34,13 +34,13 @@ jobs:
       - name: Install package + dev extras
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e .[dev,mm]
 
       - name: Run unit + CLI tests (no ML potentials)
         env:
           JAX_PLATFORMS: cpu
         run: |
-          pytest -m "not requires_so3lr and not requires_mace and not requires_dxtb and not slow" \
+          pytest -m "not requires_so3lr and not requires_mace and not requires_dxtb and not requires_jaxmd_ml and not requires_uma and not slow" \
                  --maxfail=10 -ra
 
   lint:

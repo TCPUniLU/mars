@@ -38,3 +38,6 @@ Thumbs.db
 *.swp
 *~
 .ipynb_checkpoints/
+
+# Internal validation
+validation

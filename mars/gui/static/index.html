@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MARS</title>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.2/3Dmol-min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.34.0/plotly-basic.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#" data-goto="home" title="MARS home">
+    <img src="/static/logo.svg" alt="MARS" class="brand-logo">
+  </a>
+  <nav class="nav" role="tablist" id="nav">
+    <button class="tab active" data-tab="home" role="tab"><span class="nav-ico">⌂</span>Home</button>
+    <button class="tab" data-tab="setup" role="tab"><span class="nav-ico">＋</span>New calculation</button>
+    <button class="tab" data-tab="jobs" role="tab"><span class="nav-ico">≡</span>Jobs <span id="jobs-badge" class="badge hidden"></span></button>
+    <div id="plugin-nav"></div>
+    <div class="nav-sep"></div>
+    <button class="tab" data-tab="models" role="tab"><span class="nav-ico">⚙</span>Models &amp; environments</button>
+    <button class="tab" data-tab="about" role="tab"><span class="nav-ico">ⓘ</span>About &amp; citations</button>
+    <button class="tab" data-tab="settings" role="tab"><span class="nav-ico">◐</span>Settings</button>
+  </nav>
+  <div class="sidebar-foot">
+    <div id="workdir" class="muted small" title="Job directory"></div>
+    <div id="version" class="muted small"></div>
+  </div>
+</aside>
+<div class="shell">
+
+<div id="demo-banner" class="banner demo hidden">
+  <b>Demo</b> · example jobs from published MARS runs and fictional environments. Nothing is calculated
+  or installed here; start <code>mars gui</code> without <code>--demo</code> to run your own jobs.
+</div>
+<div id="cdn-warning" class="banner hidden">
+  Could not load 3Dmol.js / Plotly from the CDN — 3D and plots are disabled (check your internet
+  connection). Jobs can still be run.
+</div>
+
+<main>
+  <!-- ================================================================ HOME -->
+  <section id="tab-home" class="tab-page active">
+    <div class="hero card">
+      <img src="/static/logo.svg" alt="MARS" class="hero-logo">
+      <p class="hero-sub">Machine-Learned Force Field Framework for Automated Conformational Sampling,
+        Vibrational Spectroscopy, and Microsolvation</p>
+      <div class="hero-actions">
+        <button class="btn primary" data-goto="setup">New calculation</button>
+        <button class="btn" data-goto="jobs">Open jobs</button>
+        <button class="btn" data-goto="models">Models &amp; environments</button>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Recent jobs</h2><button class="btn ghost small" data-goto="jobs">All jobs</button></div>
+        <ul id="home-jobs" class="job-list"></ul>
+        <p id="home-jobs-empty" class="muted small">No jobs yet. Start with a new calculation.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>How it works</h2></div>
+        <ol class="steps">
+          <li><b>Structure</b>: drop an XYZ, PDB, SDF or MOL2 file.</li>
+          <li><b>Task</b>: conformer search, optimisation, IR spectrum, microsolvation…</li>
+          <li><b>Model</b>: pick the potential; the GUI runs it in an environment that has it.</li>
+          <li><b>Run</b>: follow the log and see structures, ensembles and spectra in <i>Jobs</i>.</li>
+        </ol>
+        <p class="muted small">Every job is an ordinary <code>mars</code> command line, shown before it runs and
+          saved with the job, so any GUI run can be repeated from a terminal or a cluster script.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SETUP -->
+  <section id="tab-setup" class="tab-page">
+    <div class="grid-2">
+      <!-- Structure -->
+      <div class="card">
+        <div class="card-head">
+          <h2>1 · Structure</h2>
+          <div id="struct-summary" class="muted small"></div>
+        </div>
+        <div id="dropzone" class="dropzone">
+          <div class="drop-msg">
+            <strong>Drop a structure file here</strong> or
+            <label class="link">browse<input id="file-input" type="file"
+              accept=".xyz,.pdb,.sdf,.mol,.mol2,.extxyz" hidden></label>
+            <div class="muted small">XYZ (single or multi-frame) · PDB · SDF/MOL · MOL2</div>
+          </div>
+        </div>
+        <details id="paste-box">
+          <summary>Paste XYZ</summary>
+          <textarea id="paste-xyz" rows="7" spellcheck="false"
+            placeholder="3&#10;water&#10;O 0.000 0.000 0.117&#10;H 0.000 0.757 -0.469&#10;H 0.000 -0.757 -0.469"></textarea>
+          <button id="paste-use" class="btn small">Use pasted structure</button>
+        </details>
+        <div class="viewer-wrap">
+          <div id="struct-viewer" class="viewer"></div>
+          <div class="viewer-empty" id="struct-empty">No structure loaded</div>
+        </div>
+        <div class="toolbar">
+          <div class="seg" id="style-seg">
+            <button data-style="ballstick" class="active">Ball &amp; stick</button>
+            <button data-style="stick">Stick</button>
+            <button data-style="sphere">Spheres</button>
+            <button data-style="line">Lines</button>
+          </div>
+          <label class="check"><input type="checkbox" id="labels-toggle"> Labels</label>
+          <button class="btn ghost small" id="reset-view">Reset view</button>
+        </div>
+        <div id="struct-frames" class="frame-row hidden">
+          <label>Frame <input type="range" id="struct-frame" min="0" value="0"></label>
+          <span id="struct-frame-label" class="mono small"></span>
+        </div>
+        <div class="row">
+          <label class="field">Charge
+            <input type="number" id="charge" value="0" step="1">
+          </label>
+          <label class="field">Spin multiplicity (2S+1)
+            <input type="number" id="spin" value="1" min="1" step="1">
+          </label>
+        </div>
+      </div>
+
+      <!-- Task -->
+      <div class="card">
+        <div class="card-head"><h2>2 · Task</h2></div>
+        <div id="task-list" class="task-list"></div>
+        <p id="task-desc" class="muted small"></p>
+        <form id="task-form" class="form-grid" onsubmit="return false"></form>
+
+        <h3>Potential</h3>
+        <div class="row">
+          <label class="field">Potential
+            <select id="potential"></select>
+          </label>
+        </div>
+        <div id="potential-form" class="form-grid"></div>
+
+        <h3>Run settings</h3>
+        <div class="row">
+          <label class="field">Device
+            <select id="device">
+              <option value="auto">Auto (inherit environment)</option>
+              <option value="gpu">GPU</option>
+              <option value="cpu">CPU (JAX_PLATFORMS=cpu)</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" id="float64"> float64 precision</label>
+        </div>
+        <div class="row">
+          <label class="field grow">Environment
+            <select id="env-select"></select>
+          </label>
+          <button class="btn ghost small" data-goto="models" title="Install models or add environments">Manage…</button>
+        </div>
+        <div id="env-hint" class="muted small"></div>
+        <details>
+          <summary>Advanced arguments</summary>
+          <input type="text" id="advanced" class="mono" placeholder="e.g. --maxiter 500 --log-level DEBUG">
+          <p class="muted small">Passed verbatim to the MARS command line (see <code>mars &lt;task&gt; --help</code>).</p>
+        </details>
+        <label class="field">Job name (optional)
+          <input type="text" id="job-name" maxlength="80" placeholder="e.g. aspirin SO3LR opt">
+        </label>
+        <div class="cmd-preview">
+          <div class="muted small">Command</div>
+          <code id="cmd-preview" class="mono">—</code>
+        </div>
+        <div id="form-error" class="error hidden"></div>
+        <div class="actions">
+          <button id="run-btn" class="btn primary" disabled>Run job</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ JOBS -->
+  <section id="tab-jobs" class="tab-page">
+    <div class="jobs-layout">
+      <aside class="card job-list-card">
+        <div class="card-head">
+          <h2>Jobs</h2>
+          <button class="btn ghost small" id="refresh-jobs">Refresh</button>
+        </div>
+        <ul id="job-list" class="job-list"></ul>
+        <p id="job-list-empty" class="muted small">No jobs yet.</p>
+      </aside>
+
+      <section class="card job-detail" id="job-detail">
+        <div id="job-none" class="muted">Select a job to see its log and results.</div>
+        <div id="job-body" class="hidden">
+          <div class="card-head job-head">
+            <div>
+              <h2 id="job-title"></h2>
+              <div class="muted small" id="job-meta"></div>
+            </div>
+            <div class="btn-row">
+              <span id="job-status" class="status"></span>
+              <button class="btn small" id="job-cancel">Cancel</button>
+              <button class="btn small" id="job-rerun">Re-run</button>
+              <a class="btn small" id="job-zip" href="#">Download zip</a>
+              <button class="btn small danger" id="job-delete">Delete</button>
+            </div>
+          </div>
+          <code id="job-command" class="mono cmd-line"></code>
+          <div id="job-error" class="error hidden"></div>
+          <nav class="subtabs">
+            <button class="subtab active" data-sub="results">Results</button>
+            <button class="subtab" data-sub="log">Log</button>
+            <button class="subtab" data-sub="files">Files</button>
+            <button class="subtab" data-sub="cite">Cite this job</button>
+          </nav>
+
+          <div class="sub-page active" id="sub-results">
+            <div class="row">
+              <label class="field grow">Show
+                <select id="result-select"></select>
+              </label>
+              <button class="btn small" id="use-as-input" title="Load this structure in the New calculation tab">Use as new input</button>
+            </div>
+            <div id="result-empty" class="muted">No viewable results yet.</div>
+
+            <!-- generic structure / ensemble / trajectory viewer -->
+            <div id="res-mol" class="hidden">
+              <div class="viewer-wrap"><div id="res-viewer" class="viewer tall"></div></div>
+              <div class="toolbar">
+                <div class="seg" id="res-style-seg">
+                  <button data-style="ballstick" class="active">Ball &amp; stick</button>
+                  <button data-style="stick">Stick</button>
+                  <button data-style="sphere">Spheres</button>
+                  <button data-style="line">Lines</button>
+                </div>
+                <label class="check"><input type="checkbox" id="res-labels"> Labels</label>
+              </div>
+              <div id="res-frames" class="frame-row hidden">
+                <button class="btn small" id="res-play">▶ Play</button>
+                <input type="range" id="res-frame" min="0" value="0">
+                <span id="res-frame-label" class="mono small"></span>
+                <label class="small">fps <input type="number" id="res-fps" value="10" min="1" max="60"></label>
+              </div>
+              <div id="res-ensemble" class="hidden">
+                <div id="energy-plot" class="plot short"></div>
+                <div class="table-wrap">
+                  <table class="data" id="energy-table"></table>
+                </div>
+              </div>
+            </div>
+
+            <!-- IR viewer -->
+            <div id="res-ir" class="hidden">
+              <div id="ir-plot" class="plot"></div>
+              <div class="row">
+                <label class="field">Lorentzian FWHM (cm⁻¹)
+                  <input type="number" id="ir-width" value="10" min="0.5" step="0.5">
+                </label>
+                <label class="check"><input type="checkbox" id="ir-sticks" checked> Sticks</label>
+                <label class="check"><input type="checkbox" id="ir-invert"> Transmittance-style (inverted)</label>
+              </div>
+              <div class="grid-2 ir-bottom">
+                <div>
+                  <div class="viewer-wrap"><div id="mode-viewer" class="viewer"></div>
+                    <div class="viewer-empty hidden" id="mode-empty">Run IR with “Write normal modes” to animate modes</div>
+                  </div>
+                  <div class="toolbar">
+                    <span id="mode-label" class="mono small"></span>
+                    <label class="small">Amplitude <input type="range" id="mode-amp" min="0.1" max="2" step="0.1" value="0.8"></label>
+                  </div>
+                </div>
+                <div class="table-wrap tall-table">
+                  <table class="data clickable" id="mode-table"></table>
+                </div>
+              </div>
+            </div>
+
+            <!-- image / text -->
+            <div id="res-image" class="hidden"><img id="res-img" alt="result image"></div>
+            <pre id="res-text" class="log hidden"></pre>
+          </div>
+
+          <div class="sub-page" id="sub-log">
+            <div class="toolbar">
+              <label class="check"><input type="checkbox" id="log-follow" checked> Follow</label>
+              <a class="btn ghost small" id="log-download" href="#">Download log</a>
+            </div>
+            <pre id="log" class="log"></pre>
+          </div>
+
+          <div class="sub-page" id="sub-cite">
+            <p class="muted small">References for the methods, models and software this job used. Please cite them
+              in work that uses its results.</p>
+            <ol id="cite-list" class="credits"></ol>
+            <p id="cite-notes" class="muted small"></p>
+            <div class="btn-row">
+              <a class="btn small" id="cite-bib" href="#">Download BibTeX</a>
+              <button class="btn small ghost" id="cite-copy">Copy as text</button>
+            </div>
+          </div>
+
+          <div class="sub-page" id="sub-files">
+            <div class="table-wrap">
+              <table class="data" id="file-table"></table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================================================================ MODELS -->
+  <section id="tab-models" class="tab-page">
+    <div class="card"><div class="card-head"><h2>Models &amp; environments</h2></div>
+      <div id="models-body" class="muted">Loading…</div>
+    </div>
+  </section>
+
+  <!-- ================================================================ ABOUT -->
+  <section id="tab-about" class="tab-page">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Cite MARS</h2></div>
+        <p>If you use MARS in published work, please cite:</p>
+        <blockquote class="cite">S. Suárez-Dou, M. Gallegos, A. Tkatchenko, <i>MARS: Machine-Learned Force Field
+          Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation</i>,
+          ChemRxiv (2026). <a href="https://doi.org/10.26434/chemrxiv.15007087/v1" target="_blank" rel="noopener">doi:10.26434/chemrxiv.15007087/v1</a></blockquote>
+        <p class="muted small">Each job's page lists the references for the methods and models it used
+          (<i>Cite this job</i>). The full list, with BibTeX, is in the documentation:
+          <a href="https://tcpunilu.github.io/mars/about/citation/" target="_blank" rel="noopener">Citation</a>.</p>
+        <div id="about-version" class="muted small"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Software used by this interface</h2></div>
+        <ul class="credits">
+          <li><b>3Dmol.js</b> (molecular viewer): N. Rego, D. Koes, 3Dmol.js: molecular visualization with WebGL,
+            <i>Bioinformatics</i> <b>31</b>, 1322–1324 (2015).
+            <a href="https://doi.org/10.1093/bioinformatics/btu829" target="_blank" rel="noopener">doi:10.1093/bioinformatics/btu829</a></li>
+          <li><b>Plotly.js</b> (plots): Plotly Technologies Inc., Collaborative data science, Montréal (2015).
+            <a href="https://plot.ly" target="_blank" rel="noopener">plot.ly</a> (MIT licence)</li>
+        </ul>
+        <p class="muted small">Models, methods and reference data used by MARS calculations are credited in the
+          documentation and in each job's <i>Cite this job</i> list.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ SETTINGS -->
+  <section id="tab-settings" class="tab-page">
+    <div class="card" style="max-width:720px">
+      <div class="card-head"><h2>Settings</h2></div>
+      <div class="row">
+        <label class="field">Theme
+          <select id="theme-select">
+            <option value="">Follow the system</option><option value="light">Light</option><option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
+      <div class="row"><div class="field grow">Job directory<code id="settings-workdir"></code></div></div>
+      <div class="row"><div class="field grow">Server Python<code id="settings-python"></code></div></div>
+      <p class="muted small">The job directory and server interpreter are set when the GUI starts
+        (<code>mars gui --workdir DIR</code>); the environment of each job is chosen under
+        <i>Models &amp; environments</i>.</p>
+    </div>
+  </section>
+
+  <div id="plugin-pages"></div>
+</main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

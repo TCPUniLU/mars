@@ -12,6 +12,14 @@ mars input.xyz --debug                      # DEBUG + show all warnings
 ```
 
 `--log-level` accepts `DEBUG`, `INFO` (default), `WARNING`, or `ERROR`.
+
+**Colours.** On a terminal the banner and section titles are drawn in the
+red of the MARS logo, warnings in amber and errors in red (true colour where
+the terminal supports it, otherwise 256 colours). The *Log* tab of the
+[graphical interface](../gui/index.md) shows the same colours. Log files,
+pipes and batch-job output are plain text, and so is a log downloaded from
+the GUI. Set `NO_COLOR=1` to switch colours off, or `FORCE_COLOR=1` to keep
+them when piping into a pager (`less -R`).
 `--debug` is a one-shot alias that bumps the level and un-suppresses
 Python warnings — useful when investigating numerical issues.
 

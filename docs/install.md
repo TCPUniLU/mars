@@ -4,12 +4,22 @@ MARS is a JAX program. A typical install has three layers:
 
 1. **JAX** matched to your hardware (CUDA 12, CUDA 13, or CPU).
 2. **MARS** itself (`pip install -e .`).
-3. One or more **ML potentials** (SO3LR, MACE, dxtb) — all optional.
+3. One or more **potentials**, all optional: ML (SO3LR, MACE, UMA, ORB, AIMNet2,
+   AceFF, ANI), tight binding (dxtb), or classical force fields (AMBER, CHARMM,
+   OPLS-AA, AMOEBA).
 
 !!! tip "Use an isolated environment"
     Always install into a fresh `conda`/`venv` environment. The ML potentials
     pull in large, sometimes conflicting dependency trees (see
     [Dependency conflicts](#dependency-conflicts-dxtb-vs-the-jax-stack)).
+
+!!! tip "Installing models from the graphical interface"
+    After step 3, `mars gui` opens the [graphical interface](gui/index.md).
+    Its *Models & environments* page shows which models are installed in
+    which of your Python environments, verifies them (imports and GPUs), and
+    installs a missing model into the environment you choose, showing every
+    command first. The commands are the ones on this page. The GUI itself
+    needs no extra package.
 
 ---
 
@@ -88,7 +98,8 @@ pip install -e ".[viewer]"
 ## 4. ML potentials (optional)
 
 You only need the backends you intend to use. They are selected at runtime with
-`--potential {so3lr,mace,dxtb}`.
+`--potential NAME`; see [Choosing a potential](guide/potentials/index.md) for the full
+list.
 
 ### SO3LR (default, recommended)
 
@@ -156,6 +167,58 @@ JAX package). The `libcint` extra (`tad-libcint`, Linux only) is highly
 recommended for performance. Use it with `--potential dxtb --dxtb-method {gfn1,gfn2}`;
 it provides Mulliken charges, so it can drive IR intensities (via
 finite-difference Hessians).
+
+### jax-md ML models (UMA, ORB, ANI, AIMNet2, AceFF)
+
+The UMA port is in jax-md 0.2.29 on PyPI. The ORB, ANI, AIMNet2 and AceFF
+ports (and the alternative SO3LR backend, `--so3lr-backend jaxmd`) are only on
+jax-md **main**, and they load Equinox checkpoints:
+
+```bash
+pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"
+pip install -e ".[jaxmd-ml]"     # equinox
+pip install -e ".[uma]"          # UMA only: torch + huggingface_hub
+```
+
+!!! note "jax-md forks"
+    Installing jax-md main replaces any jax-md fork in the environment (e.g. a
+    fork carrying extra NPT integrators). MARS itself only needs the
+    `jax_md._nn` and `jax_md.mm_forcefields` packages from main.
+
+#### jax-md model weights
+
+ORB, ANI, AIMNet2, AceFF and SO3LR weights are not part of the jax-md wheel.
+The official command is:
+
+```bash
+python -m jax_md._nn.weights orb        # or ani, aimnet2, aceff, so3lr
+```
+
+If it fails with `HTTP Error 404`, the upstream `weights-v1` release has not
+been published yet. Download the Git LFS files directly instead; jax-md checks
+their SHA-256 when it loads them:
+
+```bash
+mkdir -p ~/.cache/jax_md && cd ~/.cache/jax_md
+BASE=https://media.githubusercontent.com/media/jax-md/jax-md/main/jax_md/_nn
+for p in orb/orb-v3-conservative-omol.eqx ani/ani2x_ensemble.eqx ani/ani2x_model0.eqx \
+         aimnet2/aimnet2.eqx aceff/aceff_v2.0.eqx aceff/aceff_v1.1.eqx so3lr/so3lr.eqx; do
+  curl -sSLO "$BASE/$p"
+done
+```
+
+**UMA** weights are gated. Accept the licence at
+<https://huggingface.co/facebook/UMA> and run `huggingface-cli login` once.
+The first run converts the checkpoint, which needs `torch`, and caches it.
+
+### Classical force fields (AMBER, CHARMM, OPLS-AA, AMOEBA)
+
+```bash
+pip install -e ".[mm]"           # openmm, parmed
+```
+
+You provide the parameter files; see
+[Classical force fields](guide/potentials/forcefields.md).
 
 ---
 
@@ -251,12 +314,17 @@ matches the SO3LR / MACE-JAX wheels best).
 ## Verifying the install
 
 ```bash
-# tests that need no ML-potential weights (~430 tests, ~5 min)
+# tests that need no ML-potential weights (~540 tests, ~6 min)
 pytest -m "not requires_so3lr and not requires_mace and not requires_dxtb"
 
-# full suite, including the SO3LR tests (needs SO3LR installed; ~440 tests)
+# full suite, including the SO3LR tests (needs SO3LR installed; ~550 tests)
 pytest
 ```
+
+Tests of optional packages that are not installed are skipped. In the
+graphical interface, *Models & environments → Verify* runs the same import
+check per environment and lists the GPUs JAX sees; `mars gui --demo` opens it
+with example results, without running anything.
 
 A quick end-to-end check of each potential you installed (writes a tiny
 `water.xyz` and optimizes it):

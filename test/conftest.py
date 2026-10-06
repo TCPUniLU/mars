@@ -26,6 +26,9 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "requires_so3lr: requires the SO3LR potential")
     config.addinivalue_line("markers", "requires_mace: requires the MACE calculator")
     config.addinivalue_line("markers", "requires_dxtb: requires dxtb")
+    config.addinivalue_line("markers", "requires_jaxmd_ml: requires jax-md main ML ports")
+    config.addinivalue_line("markers", "requires_uma: requires the gated UMA weights")
+    config.addinivalue_line("markers", "requires_openmm: requires OpenMM")
     config.addinivalue_line("markers", "cli: CLI subprocess smoke tests")
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mars"
-version = "0.1.1"
+version = "1.0.0"
 description = "MARS — Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -34,7 +34,12 @@ classifiers = [
 ]
 dependencies = [
     "jax>=0.4.20,<0.11",
-    "jax-md>=0.2.8",
+    # jax-md >= 0.2.29. The ML ports (UMA, ORB, ANI, AIMNet2, AceFF) and the
+    # mm_forcefields used by the classical force fields are only on jax-md main
+    # (>= commit a41c7d1, Aug 2026); PyPI forbids direct-URL dependencies, so
+    # install it with  pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"
+    # (see docs/install.md). Features check for it at import time.
+    "jax-md>=0.2.29",
     "jaxopt>=0.8.0",
     "numpy",
     "scipy",
@@ -65,6 +70,12 @@ so3lr = ["ase", "h5py", "jax<0.11", "flax<0.12.9", "orbax-checkpoint>=0.12"]
 # (PyTorch is only needed to convert a foundation checkpoint once). mace-jax
 # requires flax>=0.12 (nnx.List); the upper bound matches so3lr so both coexist.
 mace = ["mace-torch>=0.3.13", "flax>=0.12,<0.12.9"]
+# jax-md ML ports (ORB / ANI / AIMNet2 / AceFF / SO3LR-port) load Equinox
+# checkpoints; UMA converts the gated FAIR-Chem checkpoint once (torch + HF hub).
+jaxmd-ml = ["equinox>=0.11"]
+uma = ["torch>=2.0", "huggingface_hub"]
+# Classical force fields: parameters are read through OpenMM / ParmEd.
+mm = ["openmm>=8.2,<=8.5", "parmed"]
 # dxtb: PyTorch-based GFN-xTB. Use >=0.4 so it allows numpy>=2 and coexists
 # with the JAX stack (see docs/install.md "Dependency conflicts").
 dxtb = ["dxtb[libcint]>=0.4.0"]
@@ -81,6 +92,11 @@ all = [
     "orbax-checkpoint>=0.12",
     "mace-torch>=0.3.13",
     "dxtb[libcint]>=0.4.0",
+    "equinox>=0.11",
+    "torch>=2.0",
+    "huggingface_hub",
+    "openmm>=8.2,<=8.5",
+    "parmed",
 ]
 
 dev = [
@@ -121,6 +137,9 @@ markers = [
     "requires_so3lr: requires the SO3LR potential weights to be installed",
     "requires_mace: requires the MACE calculator to be installed",
     "requires_dxtb: requires the dxtb package to be installed",
+    "requires_jaxmd_ml: requires jax-md main ML ports + equinox + checkpoints",
+    "requires_uma: requires the gated UMA weights (Hugging Face login)",
+    "requires_openmm: requires OpenMM (classical force fields)",
     "cli: end-to-end CLI subprocess smoke tests",
 ]
 filterwarnings = [

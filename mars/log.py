@@ -6,6 +6,7 @@ Console output is clean and user-friendly; file output includes timestamps.
 """
 
 import logging
+import os
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -118,13 +119,84 @@ def log_timing_summary():
 # ============================================================================
 
 
+_BRAND = {
+    "red_logo": ((255, 58, 0), 202), "grey": ((102, 102, 102), 241), "amber": ((230, 150, 0), 172),
+    "red": ((215, 40, 40), 160),
+}
+
+_BANNER = """
+
+             ▒▒░░░░░░░▒▒▒░░░░▒
+          ▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▒
+       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒▒▒░░░░░░░░
+      ▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒░░▒▒▒░░░░
+     ▒▒▒▒▒▓▒▓▒▒▒▓▓▒▒▒▒▒▒▒▒▒░░░▒▒▒▒▒░░▒
+    ▒▒▓▓▓▓▓▓▒▒▓▒▒▒▒▒▒▒▒░░▒░░░░▒▒▒▒▒▒░░▒▒
+   ▒▒▒▓▓▓▓▓▓▒▓▓▓▒▒░░▒▒░░▒▓▒▒░░░░░▒▒▒░░░▒
+  ▒▓▒▒▒▓▓▒▒▒▓▓▓  ██████   ██████   █████████   ███████████    █████████
+  ░▒▒▒▒▒▒▒▒▓▒▓▓ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒███▒▒▒▒▒███  ███▒▒▒▒▒███
+ ░░░▒▓▒▒▒▒▓▒▒▓▓  ▒███▒█████▒███  ▒███    ▒███  ▒███    ▒███ ▒███    ▒▒▒
+ ░░░▒░░░░▒▒▓▒▒▓  ▒███▒▒███ ▒███  ▒███████████  ▒██████████  ▒▒██████████
+ ░░▒░▒░░░░▒▓▓▓▒  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███▒▒▒▒▒███  ▒▒▒▒▒▒▒▒███
+  ▒▒▒░░░░░░░░▒▒  ▒███      ▒███  ▒███    ▒███  ▒███    ▒███  ███    ▒███
+  ▒▒▒░▒░░░░░░░▒  █████     █████ █████   █████ █████   █████▒▒█████████
+   ▒▒░░░▒░░░░░▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒
+    ▒▒░░▒▒░░░░░▒▒▒▒▒▒▒░░▒▒▒░▒▒▒░▒░░▒▒▒▒▒
+     ▒░░░▒▒▒░░░░░░▒▒▒░░░▒▒▒▒▒▒▒▒▒░░░░▒
+      ▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒
+       ▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░▒▒░▒▒
+          ▒▒▒▒▒░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+             ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+                   ▒▒▒▒▒
+
+"""
+
+
+def _color_mode(stream) -> Optional[str]:
+    """Colour mode of a stream: truecolor, 256 or None (not a terminal, NO_COLOR, TERM=dumb)."""
+    if os.environ.get("NO_COLOR"):
+        return None
+    if not os.environ.get("FORCE_COLOR"):
+        if not (hasattr(stream, "isatty") and stream.isatty()) or os.environ.get("TERM") == "dumb":
+            return None
+    return "truecolor" if os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit") else "256"
+
+
+def _paint(text: str, name: str, mode: Optional[str], bold: bool = False) -> str:
+    if not mode:
+        return text
+    rgb, idx = _BRAND[name]
+    code = f"38;2;{rgb[0]};{rgb[1]};{rgb[2]}" if mode == "truecolor" else f"38;5;{idx}"
+    return f"\033[{'1;' if bold else ''}{code}m{text}\033[0m"
+
+
+def _paint_banner(art: str, mode: Optional[str]) -> str:
+    """The banner in the MARS red of the logo."""
+    if not mode:
+        return art
+    return "\n".join(_paint(line, "red_logo", mode, bold=True) if line.strip() else line for line in art.split("\n"))
+
+
 class _ConsoleFormatter(logging.Formatter):
-    """Clean console formatter: no timestamps, level shown only for warnings/errors."""
+    """Console formatter: no timestamps, level only for warnings/errors, brand colours on a terminal."""
+
+    def __init__(self, mode: Optional[str] = None):
+        super().__init__()
+        self.mode = mode
 
     def format(self, record):
+        msg = record.getMessage()
+        if getattr(record, "mars_banner", False):
+            return _paint_banner(msg, self.mode)
+        if getattr(record, "mars_header", False):
+            return f"  {_paint(msg, 'red_logo', self.mode, bold=True)}"
+        if getattr(record, "mars_rule", False):
+            return f"  {_paint(msg, 'grey', self.mode)}"
+        if record.levelno >= logging.ERROR:
+            return f"  {_paint(record.levelname + ':', 'red', self.mode, bold=True)} {msg}"
         if record.levelno >= logging.WARNING:
-            return f"  {record.levelname}: {record.getMessage()}"
-        return f"  {record.getMessage()}"
+            return f"  {_paint(record.levelname + ':', 'amber', self.mode, bold=True)} {msg}"
+        return f"  {msg}"
 
 
 # File formatter (with timestamps for post-run analysis)
@@ -161,7 +233,7 @@ def init_log(
     # Console handler (clean, no timestamps)
     if console:
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(_ConsoleFormatter())
+        console_handler.setFormatter(_ConsoleFormatter(_color_mode(console_handler.stream)))
         logger.addHandler(console_handler)
 
     # File handler (with timestamps)
@@ -174,36 +246,7 @@ def init_log(
     # Log initialization banner (only once)
     if not _banner_displayed:
         _banner_displayed = True
-        _RED = "\033[91m"
-        _RESET = "\033[0m"
-        logger.info("")
-        logger.info("=" * 70)
-        logger.info(_RED + """
-
-             ▒▒░░░░░░░▒▒▒░░░░▒
-          ▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▒
-       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒▒▒░░░░░░░░
-      ▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒░░▒▒▒░░░░
-     ▒▒▒▒▒▓▒▓▒▒▒▓▓▒▒▒▒▒▒▒▒▒░░░▒▒▒▒▒░░▒
-    ▒▒▓▓▓▓▓▓▒▒▓▒▒▒▒▒▒▒▒░░▒░░░░▒▒▒▒▒▒░░▒▒
-   ▒▒▒▓▓▓▓▓▓▒▓▓▓▒▒░░▒▒░░▒▓▒▒░░░░░▒▒▒░░░▒
-  ▒▓▒▒▒▓▓▒▒▒▓▓▓  ██████   ██████   █████████   ███████████    █████████
-  ░▒▒▒▒▒▒▒▒▓▒▓▓ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒███▒▒▒▒▒███  ███▒▒▒▒▒███
- ░░░▒▓▒▒▒▒▓▒▒▓▓  ▒███▒█████▒███  ▒███    ▒███  ▒███    ▒███ ▒███    ▒▒▒
- ░░░▒░░░░▒▒▓▒▒▓  ▒███▒▒███ ▒███  ▒███████████  ▒██████████  ▒▒██████████
- ░░▒░▒░░░░▒▓▓▓▒  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███▒▒▒▒▒███  ▒▒▒▒▒▒▒▒███
-  ▒▒▒░░░░░░░░▒▒  ▒███      ▒███  ▒███    ▒███  ▒███    ▒███  ███    ▒███
-  ▒▒▒░▒░░░░░░░▒  █████     █████ █████   █████ █████   █████▒▒█████████
-   ▒▒░░░▒░░░░░▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒  ▒▒▒▒▒▒▒▒▒
-    ▒▒░░▒▒░░░░░▒▒▒▒▒▒▒░░▒▒▒░▒▒▒░▒░░▒▒▒▒▒
-     ▒░░░▒▒▒░░░░░░▒▒▒░░░▒▒▒▒▒▒▒▒▒░░░░▒
-      ▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒
-       ▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░▒▒░▒▒
-          ▒▒▒▒▒░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
-             ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
-                   ▒▒▒▒▒
-
-""" + _RESET)
+        logger.info(_BANNER, extra={"mars_banner": True})
         logger.info(
             "Machine-Learned Force Field Framework for Automated Conformational".center(70)
             + "\n"
@@ -224,9 +267,9 @@ def log_header(title: str):
     """
     logger.info("")
     logger.info("")
-    logger.info("-" * 60)
-    logger.info(title)
-    logger.info("-" * 60)
+    logger.info("-" * 60, extra={"mars_rule": True})
+    logger.info(title, extra={"mars_header": True})
+    logger.info("-" * 60, extra={"mars_rule": True})
     logger.info("")
 
 
@@ -524,7 +567,7 @@ def _setup_default_logging():
     """
     if not logger.handlers:
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(_ConsoleFormatter())
+        console_handler.setFormatter(_ConsoleFormatter(_color_mode(console_handler.stream)))
         logger.addHandler(console_handler)
         logger.setLevel(logging.INFO)
 

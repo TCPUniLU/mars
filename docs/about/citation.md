@@ -3,6 +3,10 @@
 If you use MARS in published work, please cite this software together
 with the underlying methods and data it draws from.
 
+In the [graphical interface](../gui/index.md), each job's *Cite this job*
+tab lists the references for the methods and models that job used (as text
+or BibTeX), taken from this page.
+
 ## MARS itself
 
 MARS is described in a preprint of the same title; please cite it:
@@ -13,7 +17,7 @@ MARS is described in a preprint of the same title; please cite it:
   author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Tkatchenko, Alexandre},
   journal = {ChemRxiv},
   year    = {2026},
-  doi     = {10.26434/chemrxiv.15007087},
+  doi     = {10.26434/chemrxiv.15007087/v1},
   note    = {Preprint}
 }
 ```
@@ -185,6 +189,91 @@ MARS is described in a preprint of the same title; please cite it:
   doi     = {10.1063/5.0216715}
 }
 
+% MACE architecture (all --potential mace families)
+@inproceedings{batatia2022mace,
+  title     = {{MACE}: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields},
+  author    = {Batatia, Ilyes and Kov{\'a}cs, D{\'a}vid P{\'e}ter and Simm, Gregor N. C. and Ortner, Christoph and Cs{\'a}nyi, G{\'a}bor},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2022},
+  volume    = {35},
+  pages     = {11423--11436}
+}
+
+% MACE-MP-0 (--mace-foundation mp)
+@article{batatia2023macemp,
+  title   = {A foundation model for atomistic materials chemistry},
+  author  = {Batatia, Ilyes and Benner, Philipp and Chiang, Yuan and others},
+  journal = {arXiv preprint arXiv:2401.00096},
+  year    = {2025}
+}
+
+% UMA (--potential uma)
+@inproceedings{wood2025uma,
+  title={{UMA}: A Family of Universal Models for Atoms},
+  author={Brandon M Wood and Misko Dzamba and Xiang Fu and Meng Gao and Muhammed Shuaibi and Luis Barroso-Luque and Kareem Abdelmaqsoud and Vahe Gharakhanyan and John R. Kitchin and Daniel S. Levine and Kyle Michel and Anuroop Sriram and Taco Cohen and Abhishek Das and Sushree Jagriti Sahoo and Ammar Rizvi and Zachary Ward Ulissi and C. Lawrence Zitnick},
+  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
+  year={2025},
+  url={https://openreview.net/forum?id=SvopaNxYWt}
+}
+
+% Orb-v3 (--potential orb)
+@article{rhodes2025orbv3,
+  title   = {Orb-v3: atomistic simulation at scale},
+  author  = {Rhodes, Benjamin and Vandenhaute, Sander and {\v{S}}imkus, Vaidotas and others},
+  journal = {arXiv preprint arXiv:2504.06231},
+  year    = {2025}
+}
+
+% ANI-2x (--potential ani)
+@article{devereux2020ani2x,
+  title   = {Extending the Applicability of the {ANI} Deep Learning Molecular Potential to Sulfur and Halogens},
+  author  = {Devereux, Christian and Smith, Justin S. and Huddleston, Kate K. and Barros, Kipton and Zubatyuk, Roman and Isayev, Olexandr and Roitberg, Adrian E.},
+  journal = {Journal of Chemical Theory and Computation},
+  year    = {2020},
+  volume  = {16},
+  pages   = {4192--4202},
+  doi     = {10.1021/acs.jctc.0c00121}
+}
+
+@article{gao2020torchani,
+  title   = {{TorchANI}: A Free and Open Source {PyTorch}-Based Deep Learning Implementation of the {ANI} Neural Network Potentials},
+  author  = {Gao, Xiang and Ramezanghorbani, Farhad and Isayev, Olexandr and Smith, Justin S. and Roitberg, Adrian E.},
+  journal = {Journal of Chemical Information and Modeling},
+  year    = {2020},
+  volume  = {60},
+  pages   = {3408--3415},
+  doi     = {10.1021/acs.jcim.0c00451}
+}
+
+% AIMNet2 (--potential aimnet2)
+@article{anstine2025aimnet2,
+  title   = {{AIMNet2}: a neural network potential to meet your neutral, charged, organic, and elemental-organic needs},
+  author  = {Anstine, Dylan M. and Zubatyuk, Roman and Isayev, Olexandr},
+  journal = {Chemical Science},
+  year    = {2025},
+  volume  = {16},
+  pages   = {10228--10244},
+  doi     = {10.1039/D4SC08572H}
+}
+
+% AceFF (--potential aceff) and the TorchMD-Net framework it is built on
+@article{farr2026aceff,
+  title   = {{AceFF}: A State-of-the-Art Machine Learning Potential for Small Molecules},
+  author  = {Stephen E. Farr and Stefan Doerr and Antonio Mirarchi and Francesc Sabanes Zariquiey and Gianni De Fabritiis},
+  journal = {arXiv preprint arXiv:2601.00581},
+  year    = {2026}
+}
+
+@article{pelaez2024torchmdnet2,
+  title   = {{TorchMD-Net} 2.0: Fast Neural Network Potentials for Molecular Simulations},
+  author  = {Pelaez, Raul P. and Simeon, Guillem and Galvelis, Raimondas and Mirarchi, Antonio and Eastman, Peter and Doerr, Stefan and Thölke, Philipp and Markland, Thomas E. and De Fabritiis, Gianni},
+  journal = {Journal of Chemical Theory and Computation},
+  year    = {2024},
+  volume  = {20},
+  pages   = {4076--4087},
+  doi     = {10.1021/acs.jctc.4c00253}
+}
+
 % JAX: numerical backend
 @software{jax2018github,
   title  = {{JAX}: composable transformations of {P}ython+{N}um{P}y programs},
@@ -195,7 +284,7 @@ MARS is described in a preprint of the same title; please cite it:
 
 % JAX-MD: simulation primitives used throughout MARS
 @inproceedings{schoenholz2020jaxmd,
-  title     = {JAX, M.D.: A framework for differentiable physics},
+  title     = {{JAX MD}: A Framework for Differentiable Physics},
   author    = {Schoenholz, Samuel S. and Cubuk, Ekin Dogus},
   booktitle = {Advances in Neural Information Processing Systems},
   year      = {2020},
@@ -203,6 +292,113 @@ MARS is described in a preprint of the same title; please cite it:
   pages     = {11428--11441}
 }
 ```
+
+## Classical force fields
+
+MARS ships no force-field parameters. Cite the force field whose files you
+loaded, plus OpenMM, which reads them.
+
+```bibtex
+% OpenMM: parameter reading for --potential amber/charmm/opls/amoeba/mm
+@article{eastman2024openmm8,
+  title   = {{OpenMM} 8: Molecular Dynamics Simulation with Machine Learning Potentials},
+  author  = {Eastman, Peter and Galvelis, Raimondas and Pel{\'a}ez, Ra{\'u}l P. and others},
+  journal = {The Journal of Physical Chemistry B},
+  year    = {2024},
+  volume  = {128},
+  pages   = {109--116},
+  doi     = {10.1021/acs.jpcb.3c06662}
+}
+
+% AMBER protein force field (example: ff19SB) and GAFF2
+@article{tian2020ff19sb,
+  title   = {ff19SB: Amino-Acid-Specific Protein Backbone Parameters Trained against Quantum Mechanics Energy Surfaces in Solution},
+  author  = {Tian, Chuan and Kasavajhala, Koushik and Belfon, Kellon A. A. and others},
+  journal = {Journal of Chemical Theory and Computation},
+  year    = {2020},
+  volume  = {16},
+  pages   = {528--552},
+  doi     = {10.1021/acs.jctc.9b00591}
+}
+
+@article{He2020GAFF2,
+    author = {He, Xibing and Man, Viet H. and Yang, Wei and Lee, Tai-Sung and Wang, Junmei},
+    title = {{A fast and high-quality charge model for the next generation general AMBER force field}},
+    journal = {The Journal of Chemical Physics},
+    volume = {153},
+    number = {11},
+    pages = {114502},
+    year = {2020},
+    month = {09},
+    issn = {0021-9606},
+    doi = {10.1063/5.0019056},
+}
+
+
+% CHARMM36m
+@article{huang2017charmm36m,
+  title   = {{CHARMM36m}: an improved force field for folded and intrinsically disordered proteins},
+  author  = {Huang, Jing and Rauscher, Sarah and Nawrocki, Grzegorz and others},
+  journal = {Nature Methods},
+  year    = {2017},
+  volume  = {14},
+  pages   = {71--73},
+  doi     = {10.1038/nmeth.4067}
+}
+
+% OPLS-AA
+@article{jorgensen1996oplsaa,
+  title   = {Development and Testing of the {OPLS} All-Atom Force Field on Conformational Energetics and Properties of Organic Liquids},
+  author  = {Jorgensen, William L. and Maxwell, David S. and Tirado-Rives, Julian},
+  journal = {Journal of the American Chemical Society},
+  year    = {1996},
+  volume  = {118},
+  pages   = {11225--11236},
+  doi     = {10.1021/ja9621760}
+}
+
+% AMOEBA (--potential amoeba)
+@article{Zhang2018,
+   author = {Changsheng Zhang and Chao Lu and Zhifeng Jing and Chuanjie Wu and Jean-Philip Piquemal and Jay W. Ponder and Pengyu Ren},
+   doi = {10.1021/acs.jctc.7b01169},
+   issn = {1549-9618},
+   issue = {4},
+   journal = {Journal of Chemical Theory and Computation},
+   month = {4},
+   pages = {2084-2108},
+   pmid = {29438622},
+   publisher = {American Chemical Society},
+   title = {{AMOEBA} Polarizable Atomic Multipole Force Field for Nucleic Acids},
+   volume = {14},
+   year = {2018}
+}
+```
+
+## Implementation credits
+
+Several potentials run on JAX code written by the jax-md community. Please
+acknowledge these contributors (GitHub handles) along with the papers above:
+
+| MARS potential | jax-md contribution | Contributors |
+|----------------|---------------------|--------------|
+| `uma` | UMA port (`jax_md._nn.uma`), PRs #376, #394, #400, #401; neighbor-overflow fix #399 | @ekurtulus, @abhijeetgangan, @teddykoker |
+| `orb`, `ani`, `aimnet2`, `aceff`, `--so3lr-backend jaxmd` | bio-mlff ports (`jax_md._nn.{orb,ani,aimnet2,aceff,so3lr}`), PRs #411, #416, #419 | @mitkotak, @abhijeetgangan |
+| `--mace-backend jaxmd` | MACE-JAX interface (`jax_md._nn.mace`), PRs #390, #418 | @DRosen285, @abhijeetgangan, @beitom (Tom Ginsberg), @xyf5432 |
+| `amber`, `charmm`, `opls` | `mm_forcefields` AMBER energy + OpenMM converter (PR #319), MM refactor + OPLS-AA (PR #350) | @alecbetancourt, @DRosen285, @beitom, @abhijeetgangan |
+
+The original model code that these ports reproduce comes from:
+
+- [FAIR-Chem](https://github.com/FAIR-Chem/fairchem)
+- [orb-models](https://github.com/orbital-materials/orb-models)
+- [TorchANI](https://github.com/aiqm/torchani)
+- [aimnetcentral](https://github.com/isayevlab/aimnetcentral)
+- [torchmd-net](https://github.com/torchmd/torchmd-net)
+- [mace](https://github.com/ACEsuit/mace) and [mace-jax](https://github.com/ACEsuit/mace-jax)
+- [so3lr](https://github.com/general-molecular-simulations/so3lr)
+- [bio-mlff](https://github.com/mitkotak/bio-mlff)
+
+The AMOEBA terms, the OpenMM custom-expression compiler and the force-field
+readers are MARS code.
 
 ## Reference data shipped in `mars.utils`
 
@@ -282,6 +478,34 @@ doi={10.1186/1758-2946-3-33},
 }
 
 
+```
+
+## Graphical interface
+
+The web GUI (`mars gui`) shows molecules with 3Dmol.js and plots with Plotly.js:
+
+```bibtex
+% 3Dmol.js: molecular viewer of the GUI (mars/gui/static)
+@article{rego20153dmol,
+  title   = {3Dmol.js: molecular visualization with {WebGL}},
+  author  = {Rego, Nicholas and Koes, David},
+  journal = {Bioinformatics},
+  year    = {2015},
+  volume  = {31},
+  number  = {8},
+  pages   = {1322--1324},
+  doi     = {10.1093/bioinformatics/btu829}
+}
+
+% Plotly.js: plots of the GUI (no journal article; cited as software, MIT licence)
+@misc{plotly,
+  author    = {{Plotly Technologies Inc.}},
+  title     = {Collaborative data science},
+  publisher = {Plotly Technologies Inc.},
+  address   = {Montr{\'e}al, QC},
+  year      = {2015},
+  url       = {https://plot.ly}
+}
 ```
 
 Solvent reference geometries shipped under `mars/solvents/library/` are

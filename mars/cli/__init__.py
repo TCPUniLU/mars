@@ -15,7 +15,7 @@ from ._parser import create_parser
 # inside main() per subcommand so that lightweight, JAX-free commands such as
 # `mars viewer` run without a working JAX/GPU stack installed.
 
-_SUBCOMMANDS = ("ir", "optimize", "solvation", "viewer")
+_SUBCOMMANDS = ("ir", "optimize", "solvation", "viewer", "gui")
 
 
 def _extract_config_path(argv):
@@ -195,6 +195,12 @@ def main():
         args = parser.parse_args(effective_args)
         setup_debug_mode(args)
         return run_solvation_workflow(args)
+
+    if command == "gui":
+        # Local web GUI: stdlib HTTP server, JAX-free (jobs run as subprocesses).
+        from ._gui import run_gui_workflow
+
+        return run_gui_workflow(parser.parse_args(effective_args))
 
     if command == "viewer":
         # Viewer is config-free and JAX-free: no constraints / precision /

@@ -1,6 +1,13 @@
 # Quickstart
 
-Five minutes from install to a first conformational search.
+Five minutes from install to a first conformational search, on the command
+line.
+
+!!! tip "Prefer a graphical interface?"
+    `mars gui` runs every calculation below from your browser: drop the
+    structure, pick the task and model, and follow the run
+    ([Graphical interface](gui/index.md)). `mars gui --demo` shows finished
+    example jobs first, without running anything.
 
 ## 1. Make an input XYZ
 

@@ -119,7 +119,8 @@ nav:
   - Home: index.md
   - Getting started:
       - Installation: install.md
-      - Quickstart: quickstart.md
+      - Graphical interface: gui/index.md
+      - Quickstart (command line): quickstart.md
   - User guide:
       - guide/index.md
       - Conformational search: guide/conformer_search.md
@@ -127,7 +128,13 @@ nav:
       - Optimization: guide/optimization.md
       - Explicit solvation: guide/solvation.md
       - NCI mode: guide/nci_mode.md
-      - Potentials: guide/potentials.md
+      - Potentials:
+          - guide/potentials/index.md
+          - ML potentials: guide/potentials/ml.md
+          - Classical force fields: guide/potentials/forcefields.md
+          - Other potentials: guide/potentials/other.md
+          - Custom potentials: guide/potentials/custom.md
+          - Validation and credits: guide/potentials/credits.md
       - Logging: guide/logging.md
   - Examples:
       - examples/index.md
@@ -150,12 +157,16 @@ nav:
       - mars optimize: cli/optimize.md
       - mars solvation: cli/solvation.md
       - mars viewer: cli/viewer.md
+      - mars gui: cli/gui.md
   - API reference:
       - api/index.md
       - mars.utils: api/utils.md
       - mars.potentials: api/potentials.md
+      - mars.forcefields: api/forcefields.md
       - mars.ir: api/ir.md
       - mars.viewer: api/viewer.md
+      - mars.gui: api/gui.md
+      - mars.citations: api/citations.md
       - mars.solvation: api/solvation.md
       - mars.solvents: api/solvents.md
       - mars.conf_sampling: api/conf_sampling.md

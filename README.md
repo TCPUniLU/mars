@@ -1,7 +1,7 @@
 # MARS
 
-> **M**achine-Learned Force Field Framework for **A**utomated
-> Confo**r**mational **S**ampling, Vibrational Spectroscopy, and
+> **MA**chine-Learned Force Field F**R**amework for Automated
+> Confomational **S**ampling, Vibrational Spectroscopy, and
 > Microsolvation — JAX-native and GPU-accelerated.
 
 [![Documentation](https://img.shields.io/badge/docs-tcpunilu.github.io%2Fmars-blue.svg)](https://tcpunilu.github.io/mars/)
@@ -10,7 +10,8 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 MARS bundles three workflows that share a JAX backend, a pluggable
-potential layer (SO3LR, MACE, dxtb, NCI, plus harmonic/LJ for testing),
+potential layer (SO3LR, MACE, UMA, ORB, AIMNet2, AceFF, ANI, dxtb, the AMBER/CHARMM/OPLS-AA/AMOEBA
+force fields, NCI, plus harmonic/LJ for testing),
 and an automatic-configuration system:
 
 - **Conformational sampling** — RMSD metadynamics + rotamer MD + optional
@@ -20,6 +21,22 @@ and an automatic-configuration system:
   groups
 - **Explicit solvation** — layer-by-layer shell construction with optional
   layerwise / global optimization, ~30 built-in solvents
+
+---
+
+## Graphical interface
+
+Run every MARS calculation from your browser, see the results in 3D, manage
+the models installed in each Python environment, and get the references to
+cite for each job:
+
+```bash
+mars gui
+```
+
+![MARS graphical interface](docs/assets/gui/gui_demo.gif)
+
+See the [GUI guide](https://tcpunilu.github.io/mars/gui/) for a tour.
 
 ---
 
@@ -140,7 +157,7 @@ MARS is described in a preprint of the same title — please cite it:
   author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Tkatchenko, Alexandre},
   journal = {ChemRxiv},
   year    = {2026},
-  doi     = {10.26434/chemrxiv.15007087},
+  doi     = {10.26434/chemrxiv.15007087/v1},
   note    = {Preprint}
 }
 ```
