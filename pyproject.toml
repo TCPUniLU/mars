@@ -128,6 +128,7 @@ include = ["mars*"]
 [tool.setuptools.package-data]
 mars = ["*.md"]
 "mars.solvents" = ["manifest.toml", "library/*.xyz"]
+"mars.gui" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

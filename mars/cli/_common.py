@@ -148,7 +148,8 @@ def _potential_citations(args):
         return [
             "P. Eastman, R. Galvelis, R. P. Peláez, et al. (OpenMM 8), "
             "J. Phys. Chem. B 128 (2024) 109-116. doi:10.1021/acs.jpcb.3c06662",
-            "Remember to also cite the force field whose parameter files you loaded.",
+            "Please also cite the specific force field whose parameter files you loaded "
+            "(e.g. ff19SB, GAFF2, CHARMM36m, OPLS-AA, AMOEBA).",
         ]
     return []
 

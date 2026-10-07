@@ -295,8 +295,10 @@ MARS is described in a preprint of the same title; please cite it:
 
 ## Classical force fields
 
-MARS ships no force-field parameters. Cite the force field whose files you
-loaded, plus OpenMM, which reads them.
+MARS ships no force-field parameters. Cite OpenMM, which reads them, plus
+the specific force field whose parameter files you loaded (e.g. ff19SB, GAFF2,
+CHARMM36m, OPLS-AA, AMOEBA); MARS does not list these, since they depend on
+the files you use.
 
 ```bibtex
 % OpenMM: parameter reading for --potential amber/charmm/opls/amoeba/mm
@@ -308,69 +310,6 @@ loaded, plus OpenMM, which reads them.
   volume  = {128},
   pages   = {109--116},
   doi     = {10.1021/acs.jpcb.3c06662}
-}
-
-% AMBER protein force field (example: ff19SB) and GAFF2
-@article{tian2020ff19sb,
-  title   = {ff19SB: Amino-Acid-Specific Protein Backbone Parameters Trained against Quantum Mechanics Energy Surfaces in Solution},
-  author  = {Tian, Chuan and Kasavajhala, Koushik and Belfon, Kellon A. A. and others},
-  journal = {Journal of Chemical Theory and Computation},
-  year    = {2020},
-  volume  = {16},
-  pages   = {528--552},
-  doi     = {10.1021/acs.jctc.9b00591}
-}
-
-@article{He2020GAFF2,
-    author = {He, Xibing and Man, Viet H. and Yang, Wei and Lee, Tai-Sung and Wang, Junmei},
-    title = {{A fast and high-quality charge model for the next generation general AMBER force field}},
-    journal = {The Journal of Chemical Physics},
-    volume = {153},
-    number = {11},
-    pages = {114502},
-    year = {2020},
-    month = {09},
-    issn = {0021-9606},
-    doi = {10.1063/5.0019056},
-}
-
-
-% CHARMM36m
-@article{huang2017charmm36m,
-  title   = {{CHARMM36m}: an improved force field for folded and intrinsically disordered proteins},
-  author  = {Huang, Jing and Rauscher, Sarah and Nawrocki, Grzegorz and others},
-  journal = {Nature Methods},
-  year    = {2017},
-  volume  = {14},
-  pages   = {71--73},
-  doi     = {10.1038/nmeth.4067}
-}
-
-% OPLS-AA
-@article{jorgensen1996oplsaa,
-  title   = {Development and Testing of the {OPLS} All-Atom Force Field on Conformational Energetics and Properties of Organic Liquids},
-  author  = {Jorgensen, William L. and Maxwell, David S. and Tirado-Rives, Julian},
-  journal = {Journal of the American Chemical Society},
-  year    = {1996},
-  volume  = {118},
-  pages   = {11225--11236},
-  doi     = {10.1021/ja9621760}
-}
-
-% AMOEBA (--potential amoeba)
-@article{Zhang2018,
-   author = {Changsheng Zhang and Chao Lu and Zhifeng Jing and Chuanjie Wu and Jean-Philip Piquemal and Jay W. Ponder and Pengyu Ren},
-   doi = {10.1021/acs.jctc.7b01169},
-   issn = {1549-9618},
-   issue = {4},
-   journal = {Journal of Chemical Theory and Computation},
-   month = {4},
-   pages = {2084-2108},
-   pmid = {29438622},
-   publisher = {American Chemical Society},
-   title = {{AMOEBA} Polarizable Atomic Multipole Force Field for Nucleic Acids},
-   volume = {14},
-   year = {2018}
 }
 ```
 
