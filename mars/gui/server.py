@@ -91,7 +91,9 @@ class GuiApp:
             environments, nothing is run.
     """
 
-    def __init__(self, workdir=DEFAULT_WORKDIR, max_parallel=1, launcher=None, python=None, demo=False):
+    def __init__(
+        self, workdir=DEFAULT_WORKDIR, max_parallel=1, launcher=None, python=None, demo=False
+    ):
         self.demo = demo
         if demo:
             from .demo import build
@@ -163,7 +165,10 @@ def _make_handler(app: GuiApp, loopback_only: bool):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             if filename:
-                self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}")
+                self.send_header(
+                    "Content-Disposition",
+                    f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}",
+                )
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -173,8 +178,14 @@ def _make_handler(app: GuiApp, loopback_only: bool):
         def _envs(self, method, rest):
             """Models & environments: list, check, add, default, install (+ its log)."""
             if not rest and method == "GET":
-                return self._send_json({"envs": app.envs.list(), "families": families(demo=app.demo),
-                                        "default": app.envs.default(), "jax_choices": sorted(GPU_CHOICES)})
+                return self._send_json(
+                    {
+                        "envs": app.envs.list(),
+                        "families": families(demo=app.demo),
+                        "default": app.envs.default(),
+                        "jax_choices": sorted(GPU_CHOICES),
+                    }
+                )
             if rest[:1] == ["installs"] and len(rest) == 2 and method == "GET":
                 return self._send_json(app.envs.install_log(rest[1]))
             if method != "POST" or len(rest) != 1:
@@ -191,12 +202,14 @@ def _make_handler(app: GuiApp, loopback_only: bool):
             if action == "install":
                 if body.get("confirm") is not True:
                     raise ValueError("installation not confirmed")
-                return self._send_json(app.envs.install(body["family"], body["python"], body.get("jax", "cuda12")))
+                return self._send_json(
+                    app.envs.install(body["family"], body["python"], body.get("jax", "cuda12"))
+                )
             raise FileNotFoundError("/api/envs/" + action)
 
         def _plugin(self, method, path):
             """``/plugins/<id>/`` (the section page) and ``/plugins/<id>/api/...`` (its API)."""
-            parts = [x for x in path[len("/plugins/"):].split("/") if x]
+            parts = [x for x in path[len("/plugins/") :].split("/") if x]
             plugin = plugins.discover().get(parts[0]) if parts else None
             if plugin is None:
                 raise FileNotFoundError(path)
@@ -302,7 +315,9 @@ def _make_handler(app: GuiApp, loopback_only: bool):
 
             head = parts[0]
             if app.demo and head == "jobs" and method in ("POST", "DELETE"):
-                raise PermissionError("Demo mode: calculations are not run and jobs cannot be changed")
+                raise PermissionError(
+                    "Demo mode: calculations are not run and jobs cannot be changed"
+                )
             if head == "info" and method == "GET":
                 return self._send_json(
                     {
@@ -378,8 +393,11 @@ def _make_handler(app: GuiApp, loopback_only: bool):
                     return self._send_json({"files": app.store.list_files(job_id)})
                 f = app.store.job_file(job_id, "/".join(rest[1:]))
                 if f.suffix == ".log":
-                    return self._send_bytes(strip_ansi(f.read_bytes()), "text/plain; charset=utf-8",
-                                            filename=f.name if (qs.get("download") or ["0"])[0] == "1" else None)
+                    return self._send_bytes(
+                        strip_ansi(f.read_bytes()),
+                        "text/plain; charset=utf-8",
+                        filename=f.name if (qs.get("download") or ["0"])[0] == "1" else None,
+                    )
                 return self._send_file(f, download=(qs.get("download") or ["0"])[0] == "1")
             if action == "zip" and method == "GET":
                 return self._send_zip(job_id)
@@ -390,7 +408,9 @@ def _make_handler(app: GuiApp, loopback_only: bool):
                 if (qs.get("format") or [""])[0] == "bib":
                     bib = "".join(f"% {n}\n" for n in notes) + citations.bibtex(keys)
                     return self._send_bytes(bib.encode(), "application/x-bibtex; charset=utf-8")
-                return self._send_json({"refs": [citations.format_ref(k) for k in keys], "notes": notes})
+                return self._send_json(
+                    {"refs": [citations.format_ref(k) for k in keys], "notes": notes}
+                )
             raise FileNotFoundError(path)
 
         # -- endpoints -------------------------------------------------------

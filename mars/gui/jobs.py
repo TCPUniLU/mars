@@ -482,7 +482,11 @@ def build_command(
     if payload.get("float64"):
         argv.append("--float64")
 
-    env: Dict[str, Optional[str]] = {"PYTHONUNBUFFERED": "1", "FORCE_COLOR": "1", "COLORTERM": "truecolor"}
+    env: Dict[str, Optional[str]] = {
+        "PYTHONUNBUFFERED": "1",
+        "FORCE_COLOR": "1",
+        "COLORTERM": "truecolor",
+    }
     device = payload.get("device", "auto")
     if device == "cpu":
         env["JAX_PLATFORMS"] = "cpu"

@@ -30,8 +30,11 @@ def test_install_is_validated_and_never_takes_commands(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="unknown environment"):
         envs.install("so3lr", "/usr/bin/false")
     started = []
-    monkeypatch.setattr(envmod.threading, "Thread", lambda target, args, daemon: type(
-        "T", (), {"start": lambda self: started.append(args)})())
+    monkeypatch.setattr(
+        envmod.threading,
+        "Thread",
+        lambda target, args, daemon: type("T", (), {"start": lambda self: started.append(args)})(),
+    )
     rec = envs.install("mm", sys.executable)
     assert started and all(a[0] == sys.executable for a in rec["commands"])
     assert rec["commands"][0][1:4] == ["-m", "pip", "install"]
@@ -95,7 +98,9 @@ def test_demo_is_read_only_and_shows_nothing_local(tmp_path):
             return r.read().decode()
 
     def post(path, body):
-        req = urllib.request.Request(url + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
+        req = urllib.request.Request(
+            url + path, json.dumps(body).encode(), {"Content-Type": "application/json"}
+        )
         try:
             urllib.request.urlopen(req)
             return 200
@@ -103,11 +108,23 @@ def test_demo_is_read_only_and_shows_nothing_local(tmp_path):
             return e.code
 
     try:
-        info, envs, jobs = json.loads(get("/api/info")), get("/api/envs"), json.loads(get("/api/jobs"))["jobs"]
-        assert info["demo"] and len(jobs) == len(demo.JOBS) and all(j["status"] == "done" for j in jobs)
+        info, envs, jobs = (
+            json.loads(get("/api/info")),
+            get("/api/envs"),
+            json.loads(get("/api/jobs"))["jobs"],
+        )
+        assert (
+            info["demo"]
+            and len(jobs) == len(demo.JOBS)
+            and all(j["status"] == "done" for j in jobs)
+        )
         assert {e["name"] for e in json.loads(envs)["envs"]} == {"mars", "mars-dxtb", "mars-mm"}
-        everything = json.dumps(info) + envs + json.dumps(jobs) + "".join(
-            get(f"/api/jobs/{j['id']}") for j in jobs)
+        everything = (
+            json.dumps(info)
+            + envs
+            + json.dumps(jobs)
+            + "".join(get(f"/api/jobs/{j['id']}") for j in jobs)
+        )
         for private in (str(Path.home()), str(tmp_path), sys.executable, os.getcwd()):
             assert private not in everything, f"demo leaks {private}"
         ir_id = next(j["id"] for j in jobs if j["name"] == "Methanol IR spectrum")

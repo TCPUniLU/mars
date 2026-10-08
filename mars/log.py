@@ -120,7 +120,9 @@ def log_timing_summary():
 
 
 _BRAND = {
-    "red_logo": ((255, 58, 0), 202), "grey": ((102, 102, 102), 241), "amber": ((230, 150, 0), 172),
+    "red_logo": ((255, 58, 0), 202),
+    "grey": ((102, 102, 102), 241),
+    "amber": ((230, 150, 0), 172),
     "red": ((215, 40, 40), 160),
 }
 
@@ -159,7 +161,9 @@ def _color_mode(stream) -> Optional[str]:
     if not os.environ.get("FORCE_COLOR"):
         if not (hasattr(stream, "isatty") and stream.isatty()) or os.environ.get("TERM") == "dumb":
             return None
-    return "truecolor" if os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit") else "256"
+    return (
+        "truecolor" if os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit") else "256"
+    )
 
 
 def _paint(text: str, name: str, mode: Optional[str], bold: bool = False) -> str:
@@ -174,7 +178,10 @@ def _paint_banner(art: str, mode: Optional[str]) -> str:
     """The banner in the MARS red of the logo."""
     if not mode:
         return art
-    return "\n".join(_paint(line, "red_logo", mode, bold=True) if line.strip() else line for line in art.split("\n"))
+    return "\n".join(
+        _paint(line, "red_logo", mode, bold=True) if line.strip() else line
+        for line in art.split("\n")
+    )
 
 
 class _ConsoleFormatter(logging.Formatter):

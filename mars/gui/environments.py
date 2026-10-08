@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 
 import mars
 
-GPU_CHOICES = {"cuda12": 'jax[cuda12]<0.11', "cuda13": 'jax[cuda13]<0.11', "cpu": 'jax<0.11'}
+GPU_CHOICES = {"cuda12": "jax[cuda12]<0.11", "cuda13": "jax[cuda13]<0.11", "cpu": "jax<0.11"}
 
 
 def _mars_spec(extra: str, demo: bool = False) -> str:
@@ -30,39 +30,89 @@ def families(demo: bool = False) -> List[dict]:
     """The installable model families (commands are pip / python lines run in the environment)."""
     _spec = lambda extra: _mars_spec(extra, demo)  # noqa: E731
     return [
-        dict(id="core", label="MARS core (JAX)", potentials=["harmonic", "lj"],
-             modules=["mars", "jax", "jax_md"],
-             about="MARS itself with JAX. Pick the JAX build for your GPU (CUDA 12 or 13) or CPU.",
-             install=['pip install -U "{jax}"', f"pip install {_spec('')}"]),
-        dict(id="so3lr", label="SO3LR", potentials=["so3lr"], modules=["so3lr"],
-             about="Default potential; also gives the partial charges for IR intensities.",
-             install=[f"pip install {_spec('so3lr')}",
-                      "pip install git+https://github.com/general-molecular-simulations/so3lr.git"]),
-        dict(id="mace", label="MACE", potentials=["mace"], modules=["mace", "mace_jax"],
-             about="MACE foundation models, run JAX-native (converted once from PyTorch).",
-             install=[f"pip install {_spec('mace')}", "pip install git+https://github.com/ACEsuit/mace-jax"]),
-        dict(id="jaxmd_ml", label="jax-md ML models (ORB, AIMNet2, AceFF, ANI)",
-             potentials=["orb", "aimnet2", "aceff", "ani"], modules=["jax_md._nn", "equinox"],
-             weights=["orb-v3-conservative-omol.eqx", "aimnet2.eqx", "aceff_v2.0.eqx", "ani2x_ensemble.eqx"],
-             about="Ports in jax-md main; their weights are downloaded separately.",
-             install=['pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"',
-                      f"pip install {_spec('jaxmd-ml')}",
-                      "python -m jax_md._nn.weights orb", "python -m jax_md._nn.weights aimnet2",
-                      "python -m jax_md._nn.weights aceff", "python -m jax_md._nn.weights ani"]),
-        dict(id="uma", label="UMA (FAIR-Chem)", potentials=["uma"],
-             modules=["jax_md._nn.uma", "torch", "huggingface_hub"],
-             about="Meta's UMA via jax-md. The weights are gated behind a licence.",
-             install=['pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"', f"pip install {_spec('uma')}"],
-             manual=["Accept the licence at https://huggingface.co/facebook/UMA",
-                     "Run `huggingface-cli login` once in this environment"]),
-        dict(id="dxtb", label="dxtb (GFN1/GFN2-xTB)", potentials=["dxtb"], modules=["dxtb"],
-             about="PyTorch tight binding. It conflicts with parts of the JAX stack: "
-                   "use a separate environment.",
-             install=['pip install "dxtb[libcint]>=0.4.0"']),
-        dict(id="mm", label="Classical force fields (AMBER, CHARMM, OPLS-AA, AMOEBA)",
-             potentials=["amber", "charmm", "opls", "amoeba", "mm"], modules=["openmm", "parmed"],
-             about="Reads your force-field files with OpenMM / ParmEd.",
-             install=[f"pip install {_spec('mm')}"]),
+        dict(
+            id="core",
+            label="MARS core (JAX)",
+            potentials=["harmonic", "lj"],
+            modules=["mars", "jax", "jax_md"],
+            about="MARS itself with JAX. Pick the JAX build for your GPU (CUDA 12 or 13) or CPU.",
+            install=['pip install -U "{jax}"', f"pip install {_spec('')}"],
+        ),
+        dict(
+            id="so3lr",
+            label="SO3LR",
+            potentials=["so3lr"],
+            modules=["so3lr"],
+            about="Default potential; also gives the partial charges for IR intensities.",
+            install=[
+                f"pip install {_spec('so3lr')}",
+                "pip install git+https://github.com/general-molecular-simulations/so3lr.git",
+            ],
+        ),
+        dict(
+            id="mace",
+            label="MACE",
+            potentials=["mace"],
+            modules=["mace", "mace_jax"],
+            about="MACE foundation models, run JAX-native (converted once from PyTorch).",
+            install=[
+                f"pip install {_spec('mace')}",
+                "pip install git+https://github.com/ACEsuit/mace-jax",
+            ],
+        ),
+        dict(
+            id="jaxmd_ml",
+            label="jax-md ML models (ORB, AIMNet2, AceFF, ANI)",
+            potentials=["orb", "aimnet2", "aceff", "ani"],
+            modules=["jax_md._nn", "equinox"],
+            weights=[
+                "orb-v3-conservative-omol.eqx",
+                "aimnet2.eqx",
+                "aceff_v2.0.eqx",
+                "ani2x_ensemble.eqx",
+            ],
+            about="Ports in jax-md main; their weights are downloaded separately.",
+            install=[
+                'pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"',
+                f"pip install {_spec('jaxmd-ml')}",
+                "python -m jax_md._nn.weights orb",
+                "python -m jax_md._nn.weights aimnet2",
+                "python -m jax_md._nn.weights aceff",
+                "python -m jax_md._nn.weights ani",
+            ],
+        ),
+        dict(
+            id="uma",
+            label="UMA (FAIR-Chem)",
+            potentials=["uma"],
+            modules=["jax_md._nn.uma", "torch", "huggingface_hub"],
+            about="Meta's UMA via jax-md. The weights are gated behind a licence.",
+            install=[
+                'pip install "jax-md @ git+https://github.com/jax-md/jax-md.git"',
+                f"pip install {_spec('uma')}",
+            ],
+            manual=[
+                "Accept the licence at https://huggingface.co/facebook/UMA",
+                "Run `huggingface-cli login` once in this environment",
+            ],
+        ),
+        dict(
+            id="dxtb",
+            label="dxtb (GFN1/GFN2-xTB)",
+            potentials=["dxtb"],
+            modules=["dxtb"],
+            about="PyTorch tight binding. It conflicts with parts of the JAX stack: "
+            "use a separate environment.",
+            install=['pip install "dxtb[libcint]>=0.4.0"'],
+        ),
+        dict(
+            id="mm",
+            label="Classical force fields (AMBER, CHARMM, OPLS-AA, AMOEBA)",
+            potentials=["amber", "charmm", "opls", "amoeba", "mm"],
+            modules=["openmm", "parmed"],
+            about="Reads your force-field files with OpenMM / ParmEd.",
+            install=[f"pip install {_spec('mm')}"],
+        ),
     ]
 
 
@@ -109,23 +159,37 @@ print("MARSPROBE" + json.dumps(out))
 
 def probe(python: str, full: bool = False, timeout: float = 120.0) -> dict:
     """Per-family status (ok, missing, broken, no_weights, no_mars) of an interpreter."""
-    spec = [{"id": f["id"], "modules": f["modules"], "weights": f.get("weights", [])} for f in families()]
+    spec = [
+        {"id": f["id"], "modules": f["modules"], "weights": f.get("weights", [])}
+        for f in families()
+    ]
     t0 = time.time()
     try:
         with tempfile.TemporaryDirectory() as neutral:
-            r = subprocess.run([python, "-c", _PROBE, json.dumps(spec), "1" if full else "0"], capture_output=True,
-                               text=True, timeout=timeout, cwd=neutral,
-                               env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
+            r = subprocess.run(
+                [python, "-c", _PROBE, json.dumps(spec), "1" if full else "0"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=neutral,
+                env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"},
+            )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"python": python, "error": f"{type(exc).__name__}: {exc}"}
     line = next((ln for ln in r.stdout.splitlines() if ln.startswith("MARSPROBE")), None)
     if line is None:
-        return {"python": python, "error": (r.stderr.strip().splitlines() or ["no output"])[-1][:300]}
-    out = json.loads(line[len("MARSPROBE"):])
+        return {
+            "python": python,
+            "error": (r.stderr.strip().splitlines() or ["no output"])[-1][:300],
+        }
+    out = json.loads(line[len("MARSPROBE") :])
     core_ok = not out["families"]["core"]["missing"] and not out["families"]["core"]["errors"]
     for fid, fam in out["families"].items():
-        fam["status"] = ("missing" if fam["missing"] else "broken" if fam["errors"]
-                         else "no_weights" if fam["missing_weights"] else "ok")
+        fam["status"] = (
+            "missing"
+            if fam["missing"]
+            else "broken" if fam["errors"] else "no_weights" if fam["missing_weights"] else "ok"
+        )
         if fid != "core" and fam["status"] == "ok" and not core_ok:
             fam["status"] = "no_mars"
     out.update(python=python, full=full, seconds=round(time.time() - t0, 1), checked=time.time())
@@ -159,7 +223,9 @@ class Environments:
         if not exe:
             return []
         try:
-            r = subprocess.run([exe, "env", "list", "--json"], capture_output=True, text=True, timeout=30)
+            r = subprocess.run(
+                [exe, "env", "list", "--json"], capture_output=True, text=True, timeout=30
+            )
             prefixes = json.loads(r.stdout).get("envs", [])
         except (OSError, ValueError, subprocess.TimeoutExpired):
             return []
@@ -175,16 +241,26 @@ class Environments:
         """Every known environment with its last check (if any) and the default flag."""
         s = self._settings()
         envs, seen = [], set()
-        candidates = ([{"name": "this GUI's environment", "python": self.server_python, "source": "server"}]
-                      + self._conda_envs()
-                      + [{"name": Path(p).parents[1].name, "python": p, "source": "added"} for p in s.get("added", [])])
+        candidates = (
+            [{"name": "this GUI's environment", "python": self.server_python, "source": "server"}]
+            + self._conda_envs()
+            + [
+                {"name": Path(p).parents[1].name, "python": p, "source": "added"}
+                for p in s.get("added", [])
+            ]
+        )
         for e in candidates:
             key = os.path.realpath(e["python"])
             if key in seen:
                 continue
             seen.add(key)
-            envs.append(dict(e, check=self.checks.get(e["python"]),
-                             default=e["python"] == s.get("default", self.server_python)))
+            envs.append(
+                dict(
+                    e,
+                    check=self.checks.get(e["python"]),
+                    default=e["python"] == s.get("default", self.server_python),
+                )
+            )
         return envs
 
     def known(self, python: str) -> bool:
@@ -227,7 +303,11 @@ class Environments:
         order = sorted(self.list(), key=lambda e: not e["default"])
         for e in order:
             c = e.get("check")
-            if c and "families" in c and (fam is None or c["families"].get(fam, {}).get("status") == "ok"):
+            if (
+                c
+                and "families" in c
+                and (fam is None or c["families"].get(fam, {}).get("status") == "ok")
+            ):
                 return e["python"]
         return None
 
@@ -245,8 +325,14 @@ class Environments:
                 raise ValueError("another installation is running; wait for it to finish")
             iid = f"{time.strftime('%Y%m%d-%H%M%S')}-{family}"
             self.install_dir.mkdir(parents=True, exist_ok=True)
-            rec = {"id": iid, "family": family, "python": python, "status": "running",
-                   "log": str(self.install_dir / f"{iid}.log"), "commands": []}
+            rec = {
+                "id": iid,
+                "family": family,
+                "python": python,
+                "status": "running",
+                "log": str(self.install_dir / f"{iid}.log"),
+                "commands": [],
+            }
             for line in fam["install"]:
                 line = line.replace("{jax}", GPU_CHOICES[jax])
                 words = shlex.split(line)
