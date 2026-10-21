@@ -110,7 +110,7 @@ docs = [
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.24",
     "pymdown-extensions>=10.0",
-    "mkdocs-glightbox>=0.4",
+    "mkdocs-glightbox>=0.4,<0.5.2",  # 0.5.2 drops every image from the built pages
     "black>=23.0",            # mkdocstrings uses it to format rendered signatures
 ]
 
