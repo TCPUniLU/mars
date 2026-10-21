@@ -112,38 +112,46 @@ def load_config(path):
     """Parse a TOML-style config file.
 
     Returns a dict mapping section names to dicts of {key: value}.
+    """
+    with open(path, encoding="utf-8") as fh:
+        return parse_config_text(fh.read(), source=path)
+
+
+def parse_config_text(text, source="<config>"):
+    """Parse TOML-style config *text*.
+
     Lines starting with ``#`` and blank lines are ignored.
     Inline comments (`` # ...``) are stripped from values.
+    Returns a dict mapping section names to dicts of {key: value}.
     """
     sections = {}
     current = None
 
-    with open(path, encoding="utf-8") as fh:
-        for lineno, line in enumerate(fh, 1):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
+    for lineno, line in enumerate(text.splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
 
-            # Section header  [name]
-            m = re.match(r"^\[([A-Za-z_][A-Za-z0-9_]*)\]$", line)
-            if m:
-                current = m.group(1)
-                sections.setdefault(current, {})
-                continue
+        # Section header  [name]
+        m = re.match(r"^\[([A-Za-z_][A-Za-z0-9_]*)\]$", line)
+        if m:
+            current = m.group(1)
+            sections.setdefault(current, {})
+            continue
 
-            # key = value
-            if "=" in line:
-                if current is None:
-                    raise ValueError(f"{path}:{lineno}: key=value outside any section")
-                key, _, val = line.partition("=")
-                key = key.strip()
-                # Strip inline comment
-                val = re.sub(r"\s+#.*$", "", val).strip()
-                sections[current][key] = _parse_value(val)
-                continue
+        # key = value
+        if "=" in line:
+            if current is None:
+                raise ValueError(f"{source}:{lineno}: key=value outside any section")
+            key, _, val = line.partition("=")
+            key = key.strip()
+            # Strip inline comment
+            val = re.sub(r"\s+#.*$", "", val).strip()
+            sections[current][key] = _parse_value(val)
+            continue
 
-            # Non-empty line that doesn't match anything
-            raise ValueError(f"{path}:{lineno}: cannot parse line: {line!r}")
+        # Non-empty line that doesn't match anything
+        raise ValueError(f"{source}:{lineno}: cannot parse line: {line!r}")
 
     return sections
 
@@ -155,6 +163,7 @@ def config_section_to_argv(section_dict):
 
     - ``bool`` values: ``True`` → bare ``--flag``; ``False`` is skipped
       (CLI flags use ``store_true`` so there is no negation form).
+    - ``None`` is skipped: the CLI default applies.
     - ``list``/``tuple`` values: emitted as multiple tokens after the flag,
       e.g. ``layers = [2, 4]`` → ``["--layers", "2", "4"]``.  This matches
       argparse ``nargs="+"`` / ``nargs=2`` arguments such as ``--layers``
@@ -170,6 +179,8 @@ def config_section_to_argv(section_dict):
         if key == "input":
             continue
         flag = "--" + key.replace("_", "-")
+        if val is None:
+            continue
         if isinstance(val, bool):
             if val:
                 argv.append(flag)

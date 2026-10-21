@@ -2387,11 +2387,16 @@ def compute_ir_from_md(
     log_message("")
     log_header("COMPUTING IR SPECTRUM FROM DIPOLE AUTOCORRELATION")
 
-    frequencies_cm, intensities = ir_from_dipoles(
-        dipoles=dipole_moments,
-        dt_fs=dipole_save_fs,
-        window=window,
+    n_chop = chop if chop is not None and chop > 1 else 1
+    if n_chop > 1:
+        log_info(f"Applying Welch-style chopping: {n_chop} segments")
+    frequencies_cm, intensities, intensities_error = _chopped_spectrum(
+        dipole_moments, dipole_save_fs, window, chop
     )
+    peak = jnp.max(intensities) + 1e-10
+    intensities = intensities / peak
+    if intensities_error is not None:
+        intensities_error = intensities_error / peak
 
     log_info(f"Frequency range: 0 to {frequencies_cm[-1]:.0f} cm⁻¹")
     log_info(f"Frequency resolution: {frequencies_cm[1] - frequencies_cm[0]:.1f} cm⁻¹")
@@ -2428,6 +2433,7 @@ def compute_ir_from_md(
         "frequencies": frequencies_cm,
         "intensities": intensities,
         "intensities_normalized": intensities,
+        **({"intensities_error": intensities_error} if intensities_error is not None else {}),
         "trajectory": trajectory_positions,
         "dipole_moments": dipole_moments,
         "temperature": temperature,
@@ -2451,7 +2457,7 @@ def compute_ir_from_md(
 def ir_from_dipoles(
     dipoles,  # (T, 3)
     dt_fs: float,  # time step [fs]
-    window: str = "Hann",  # window function: 'Hann', 'Hamming', 'BH', 'Gaussian', 'none'
+    window: str = "Hann",  # 'Hann', 'Hamming', 'Blackman', 'Bartlett', 'BH', 'Gaussian', 'none'
     normalize: bool = True,
 ):
     """
@@ -2460,8 +2466,9 @@ def ir_from_dipoles(
     Args:
         dipoles: Dipole trajectory in e*Angstrom, shape ``(N, 3)``.
         dt_fs: Sampling interval in femtoseconds.
-        window: Window function name: 'Hann', 'Hamming', 'BH' (Blackman-Harris),
-            'Gaussian', or 'none'. Default: 'Hann'.
+        window: Window function name (case-insensitive): 'Hann', 'Hamming',
+            'Blackman', 'Bartlett', 'BH' (Blackman-Harris), 'Gaussian', or
+            'none' (``None`` is accepted as 'none'). Default: 'Hann'.
         normalize: If True, scale the spectrum so the strongest peak is 1.
 
     Returns:
@@ -2480,12 +2487,13 @@ def ir_from_dipoles(
 
     # Window functions (periodic / sym=False variants)
     n = jnp.arange(Nt)
-    if window.lower() != "none":
-        if window.lower() == "gaussian":
+    window = "none" if window is None else str(window).lower()
+    if window != "none":
+        if window == "gaussian":
             sigma = 2.0 * jnp.sqrt(2.0 * jnp.log(2.0))
             std = 4000.0 / sigma
             win = jnp.exp(-0.5 * ((n - (Nt - 1) / 2.0) / std) ** 2)
-        elif window.lower() == "bh":
+        elif window == "bh":
             # 4-term Blackman-Harris (periodic)
             a0, a1, a2, a3 = 0.35875, 0.48829, 0.14128, 0.01168
             win = (
@@ -2494,10 +2502,19 @@ def ir_from_dipoles(
                 + a2 * jnp.cos(4 * jnp.pi * n / Nt)
                 - a3 * jnp.cos(6 * jnp.pi * n / Nt)
             )
-        elif window.lower() == "hamming":
+        elif window == "hamming":
             win = 0.54 - 0.46 * jnp.cos(2 * jnp.pi * n / Nt)
-        else:  # default: Hann
+        elif window == "blackman":
+            win = 0.42 - 0.5 * jnp.cos(2 * jnp.pi * n / Nt) + 0.08 * jnp.cos(4 * jnp.pi * n / Nt)
+        elif window == "bartlett":
+            win = 1.0 - jnp.abs(2.0 * n / Nt - 1.0)
+        elif window == "hann":
             win = 0.5 * (1.0 - jnp.cos(2 * jnp.pi * n / Nt))
+        else:
+            raise ValueError(
+                f"Unknown window '{window}'; expected one of hann, hamming, blackman, "
+                "bartlett, bh, gaussian, none"
+            )
         # Power-preserving window normalization (matches IrtoolsLight)
         win = win * (jnp.sum(win**2) * Nt) / jnp.sum(win) ** 2
     else:
@@ -2550,6 +2567,46 @@ def _average_ir_results(frequencies_list, intensities_list, normalize=True):
     return freq, mean_intens, std_intens
 
 
+def _chopped_spectrum(dipoles, dipole_save_fs, window, chop):
+    """IR spectrum of one dipole trajectory, averaged over ``chop`` segments.
+
+    The trajectory is split into contiguous, non-overlapping segments of equal
+    length; their (un-normalised) spectra are averaged.  With ``chop`` <= 1 the
+    full trajectory is used.
+
+    Returns:
+        frequencies, mean intensities (un-normalised), and the standard
+        deviation across segments (``None`` without chopping).
+    """
+    dip = jnp.asarray(dipoles)
+    n_chop = chop if chop is not None and chop > 1 else 1
+    if n_chop == 1:
+        freqs, intens = ir_from_dipoles(dip, dt_fs=dipole_save_fs, window=window, normalize=False)
+        return freqs, intens, None
+    chunk_len = dip.shape[0] // n_chop
+    chunk_freqs, chunk_intens = [], []
+    for c in range(n_chop):
+        f, inten = ir_from_dipoles(
+            dip[c * chunk_len : (c + 1) * chunk_len],
+            dt_fs=dipole_save_fs,
+            window=window,
+            normalize=False,
+        )
+        chunk_freqs.append(f)
+        chunk_intens.append(inten)
+    return _average_ir_results(chunk_freqs, chunk_intens, normalize=False)
+
+
+def _per_run_trajectory_file(trajectory_file, conformer_index, replica_index):
+    """Per-run HDF5 name ``<stem>_c<conf>_r<rep><suffix>``, or ``None``."""
+    if not trajectory_file:
+        return None
+    from pathlib import Path
+
+    p = Path(trajectory_file)
+    return str(p.with_name(f"{p.stem}_c{conformer_index}_r{replica_index}{p.suffix or '.h5'}"))
+
+
 def compute_ir_from_md_parallel(
     xyz_file: str,
     potential_name: str = "so3lr",
@@ -2570,6 +2627,7 @@ def compute_ir_from_md_parallel(
     output_prefix: Optional[str] = None,
     potential_options: Optional[Dict] = None,
     atom_indices: Optional[List[int]] = None,
+    trajectory_file: Optional[str] = None,
 ) -> Dict:
     """Compute IR spectrum from MD for multiple conformers and/or replicas.
 
@@ -2590,6 +2648,11 @@ def compute_ir_from_md_parallel(
             ``n_total == 1``, run sequentially.
         atom_indices: Optional 0-based atom subset used to track the
             dipole (same semantics as :func:`compute_ir_from_md`).
+        trajectory_file: Optional HDF5 path for the NVE trajectories. In the
+            parallel path a single file is written with datasets of shape
+            ``(n_total, n_frames, n_atoms, 3)`` (positions) and
+            ``(n_total, n_frames, 3)`` (dipoles); in the sequential path one
+            file per run is written with a ``_c<conformer>_r<replica>`` suffix.
 
     Returns:
         results dict compatible with :func:`save_ir_spectrum`, with extra
@@ -2681,6 +2744,7 @@ def compute_ir_from_md_parallel(
                     random_seed=rep_i,
                     potential_options=potential_options,
                     atom_indices=atom_indices,
+                    trajectory_file=_per_run_trajectory_file(trajectory_file, conf_i, rep_i),
                 )
                 all_freqs.append(res["frequencies"])
                 all_intens.append(res["intensities"])
@@ -2860,10 +2924,13 @@ def compute_ir_from_md_parallel(
 
     # Collect one dipole vector per replica per outer frame
     all_dipole_frames = []  # list of (n_total, 3) arrays
+    all_position_frames = [] if trajectory_file else None  # list of (n_total, n_atoms, 3)
 
     for _ in tqdm(range(n_nve_frames), desc="NVE Production (parallel)", unit="frame"):
         state_nve_batch, nbr_state, dipoles_frame = run_nve_step_batch(state_nve_batch, nbr_state)
         all_dipole_frames.append(dipoles_frame)
+        if all_position_frames is not None:
+            all_position_frames.append(np.asarray(state_nve_batch.position))
         if _check_overflow(nbr_state):
             tqdm.write("  Neighbor list overflow during NVE, reallocating...")
             nbr_state = _allocate_nbrs_batch(state_nve_batch.position, potential)
@@ -2873,6 +2940,26 @@ def compute_ir_from_md_parallel(
     dipoles_stack = jnp.stack(all_dipole_frames)  # (n_nve_frames, n_total, 3)
     dipoles_per_traj = jnp.transpose(dipoles_stack, (1, 0, 2))  # (n_total, n_nve_frames, 3)
 
+    if trajectory_file:
+        import h5py
+
+        traj = np.transpose(np.stack(all_position_frames), (1, 0, 2, 3))
+        log_info(f"Saving {n_total} NVE trajectories to {trajectory_file}...")
+        with h5py.File(trajectory_file, "w") as f:
+            f.create_dataset("trajectory", data=traj)
+            f.create_dataset("dipole_moments", data=np.asarray(dipoles_per_traj))
+            f.create_dataset("symbols", data=np.array(symbols, dtype="S2"))
+            f.attrs["n_trajectories"] = n_total
+            f.attrs["n_replicas"] = n_replicas
+            f.attrs["conformer_indices"] = np.asarray(conformer_indices)
+            f.attrs["n_frames"] = traj.shape[1]
+            f.attrs["n_atoms"] = traj.shape[2]
+            f.attrs["temperature"] = temperature
+            f.attrs["nvt_time_ps"] = nvt_time_ps
+            f.attrs["nve_time_ps"] = nve_time_ps
+            f.attrs["dt_fs"] = dt_fs
+            f.attrs["save_interval"] = save_every
+
     log_header("COMPUTING IR SPECTRA FROM DIPOLE AUTOCORRELATIONS")
 
     n_chop = chop if chop is not None and chop > 1 else 1
@@ -2881,29 +2968,9 @@ def compute_ir_from_md_parallel(
 
     all_freqs, all_intens = [], []
     for i in range(n_total):
-        dip = dipoles_per_traj[i]  # (n_nve_frames, 3)
-        n_frames_i = dip.shape[0]
-
-        if n_chop > 1:
-            chunk_len = n_frames_i // n_chop
-            chunk_freqs, chunk_intens = [], []
-            for c in range(n_chop):
-                start = c * chunk_len
-                end = start + chunk_len
-                f, inten = ir_from_dipoles(
-                    dip[start:end], dt_fs=dipole_save_fs, window=window, normalize=False
-                )
-                chunk_freqs.append(f)
-                chunk_intens.append(inten)
-            avg_f, avg_i, _ = _average_ir_results(chunk_freqs, chunk_intens, normalize=False)
-            all_freqs.append(avg_f)
-            all_intens.append(avg_i)
-        else:
-            freqs, intens = ir_from_dipoles(
-                dip, dt_fs=dipole_save_fs, window=window, normalize=False
-            )
-            all_freqs.append(freqs)
-            all_intens.append(intens)
+        freqs, intens, _ = _chopped_spectrum(dipoles_per_traj[i], dipole_save_fs, window, chop)
+        all_freqs.append(freqs)
+        all_intens.append(intens)
 
     # Normalize only at the very end (matching GEMS protocol)
     avg_freq, avg_intens, std_intens = _average_ir_results(all_freqs, all_intens, normalize=True)

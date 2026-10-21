@@ -26,6 +26,13 @@ Every GUI job is an ordinary `mars` command line. It is shown before the job
 starts and saved with it, so any calculation set up in the GUI can be repeated
 from a terminal or a cluster script.
 
+The settings can also be kept as a [config file](../config/overview.md):
+*Save config* downloads them, the *Config file* tab under the form shows the
+file live, and every job folder gets a `config.toml` next to `command.sh`.
+Run it with `mars <task> --config file.toml`. *Load config…* fills the form
+from a config file; options the form cannot hold (for example file names,
+which have to be attached again) are listed after loading.
+
 ## 1. New calculation
 
 ![New calculation](../assets/gui/new_calculation.png)
@@ -33,8 +40,16 @@ from a terminal or a cluster script.
 1. **Structure**: drop an XYZ (single or multi-frame), PDB, SDF/MOL or MOL2
    file, or paste XYZ text. Set the charge and spin multiplicity.
 2. **Task**: conformer search, geometry optimisation, IR spectrum, explicit
-   solvation, metadynamics only or MD only. The options of each task are the
-   ones of the command line (see the [User guide](../guide/index.md)).
+   solvation, metadynamics only or MD only. Every command-line option of the
+   task is in the form (see the [User guide](../guide/index.md)): the common
+   ones under *Main options*, the rest in collapsible sections named like the
+   `--help` groups. The form adapts to your choices: an option appears only
+   when it applies (the FIRE parameters with `--method FIRE`, the MD-IR
+   settings once *MD-based IR* is ticked, the barostat settings with
+   *Barostat*, ...), and hidden options never reach the command. *Find an
+   option* searches names, flags and help texts; options that do not apply
+   yet are shown greyed with what they need. A dot marks values changed
+   from the CLI default, and *Reset* restores them.
 3. **Potential**: SO3LR, MACE, UMA, ORB, AIMNet2, AceFF, ANI, dxtb or a
    classical force field, with its own options.
 4. **Run settings**: device (GPU / CPU), precision, and the **environment** the
@@ -91,7 +106,7 @@ several Python environments. This page shows:
 
 ![Cite this job](../assets/gui/job_cite.png)
 
-*Cite this job* lists MARS, its numerical libraries and the papers of the
+*Cite this job* lists MARS, its numerical libraries and the articles of the
 methods and models the job used (for example SO3LR for an SO3LR job, AccFG for
 the peak assignment of an IR spectrum, the MACE family you chose). The list is
 generated from the same references as the [Citation](../about/citation.md)

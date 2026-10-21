@@ -35,6 +35,6 @@ loads. The current results are in `validation/README.md`.
 | `amber`, `charmm`, `opls` | #319 @alecbetancourt; #350 @DRosen285, @beitom; @abhijeetgangan | Parameters read by [OpenMM](https://openmm.org) and [ParmEd](https://parmed.github.io/ParmEd/html/index.html) |
 | `amoeba` | MARS (native JAX) | [OpenMM](https://openmm.org), [Tinker](https://dasher.wustl.edu/tinker/) |
 
-The MARS command line prints the implementation and the papers to cite each
+The MARS command line prints the implementation and the articles to cite each
 time a potential is loaded. The BibTeX entries are in
 [Citation](../../about/citation.md).

@@ -25,7 +25,7 @@ _banner_displayed = False
 MARS_CITATION = (
     "S. Suárez-Dou et al., MARS: Machine-Learned Force Field\n"
     "Framework for Automated Conformational Sampling, Vibrational Spectroscopy,\n"
-    "and Microsolvation, ChemRxiv (2026). doi:10.26434/chemrxiv.15007087/v1"
+    "and Microsolvation, J. Chem. Theory Comput. (2026). doi:10.1021/acs.jctc.6c01588"
 )
 
 

@@ -4,6 +4,10 @@ Every MARS subcommand accepts `--config FILE`, where `FILE` is a
 TOML-style control file. Values from the file act as **defaults**; any
 explicit CLI flag passed on the same command line overrides them.
 
+The [graphical interface](../gui/index.md) saves its settings in this format
+(*Save config*), loads such files (*Load config…*), and writes a
+`config.toml` into every job folder.
+
 ## Section layout
 
 | Section              | Used by                                       |
@@ -54,7 +58,8 @@ so it always overrides the file.
   input = "mol.xyz"
   mode = "thorough"
   ```
-  Then run `mars --config run.toml` (no positional argument needed).
+  Then run `mars --config run.toml` (no positional argument needed). This
+  works for the subcommands too: `mars ir --config ir.toml`.
 - The `[constraints]` section is **only** read from the config file —
   there is no equivalent CLI flag.
 

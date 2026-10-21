@@ -6,7 +6,9 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
+from .. import __version__
 from .environments import Environments, families
+from .runconfig import export_config
 
 DATA = Path(__file__).resolve().parents[2] / "examples" / "gui_demo"
 
@@ -29,7 +31,7 @@ JOBS = [
         input="methanol.xyz",
         argv=["mars", "ir", "methanol.xyz", "--md", "--n-replicas", "10", "-o", "md_ir.dat"],
         minutes=14,
-        options={"--md": True, "--n-replicas": 10},
+        options={"--md": True, "--n-replicas": 10, "--output": "md_ir.dat"},
     ),
     dict(
         dir="methoxycyclohexanone_conformers",
@@ -139,6 +141,8 @@ def build(workdir) -> List[str]:
             ),
         )
         (d / "job.json").write_text(json.dumps(rec, indent=1))
+        _, cfg = export_config(rec["payload"], j["input"], version=__version__)
+        (d / "config.toml").write_text(cfg)
         ids.append(jid)
     return ids
 
@@ -155,7 +159,7 @@ _DEMO_ENVS = [
             "dxtb": "missing",
             "mm": "missing",
         },
-        "1.0.0",
+        "1.0.1",
         ["cuda:0"],
     ),
     (
@@ -169,7 +173,7 @@ _DEMO_ENVS = [
             "dxtb": "ok",
             "mm": "missing",
         },
-        "1.0.0",
+        "1.0.1",
         ["cpu:0"],
     ),
     (

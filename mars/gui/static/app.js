@@ -133,7 +133,7 @@ function applyTheme(theme) {
 }
 function plotLayoutColors() {
   return {
-    paper_bgcolor: cssVar("--panel"),
+    article_bgcolor: cssVar("--panel"),
     plot_bgcolor: cssVar("--panel"),
     "font.color": cssVar("--text"),
     "xaxis.gridcolor": cssVar("--border"),
@@ -143,7 +143,7 @@ function plotLayoutColors() {
 function basePlotLayout(extra = {}) {
   return Object.assign({
     margin: { l: 60, r: 20, t: 20, b: 50 },
-    paper_bgcolor: cssVar("--panel"),
+    article_bgcolor: cssVar("--panel"),
     plot_bgcolor: cssVar("--panel"),
     font: { color: cssVar("--text"), size: 12 },
     showlegend: false,
@@ -416,14 +416,62 @@ $("#paste-use").addEventListener("click", () => {
 });
 
 // ------------------------------------------------------------------ task / form
+// Every CLI flag of the task is in the schema, grouped in sections. `show_if`
+// rules (mirrored server-side) hide options that do not apply to the current
+// choices; the filter box finds any option, greying out the inactive ones.
+const isEmptyVal = (v) => v === null || v === undefined || v === "" || v === false || (Array.isArray(v) && !v.length);
+const asBool = (v) => v === true || v === "true" || v === "on" || v === 1 || v === "1";
+
+function condHolds(c, values, fields) {
+  const f = fields[c.flag];
+  let v = c.flag in values ? values[c.flag] : (f ? f.default : null);
+  if (f && f.type === "bool") v = asBool(v);
+  if ("is" in c) return typeof c.is === "boolean" ? !!v === c.is : String(v) === String(c.is);
+  if ("in" in c) return v !== null && v !== undefined && c.in.map(String).includes(String(v));
+  if ("not_in" in c) return v === null || v === undefined || !c.not_in.map(String).includes(String(v));
+  if ("empty" in c) return isEmptyVal(v) === c.empty;
+  return true;
+}
+function condText(c) {
+  if ("is" in c) return c.is === true ? c.flag : c.is === false ? `no ${c.flag}` : `${c.flag} ${c.is}`;
+  if ("in" in c) return `${c.flag} ${c.in.join(" or ")}`;
+  if ("not_in" in c) return `${c.flag} not ${c.not_in.join("/")}`;
+  if ("empty" in c) return c.empty ? `${c.flag} unset` : `${c.flag} set`;
+  return "";
+}
+function sameValue(field, v) {
+  const d = field.default;
+  if (field.type === "bool") return asBool(v) === asBool(d);
+  if (isEmptyVal(v)) return isEmptyVal(d) || field.type === "optional";
+  if (field.type === "list") {
+    const items = Array.isArray(v) ? v : String(v).trim().split(/[\s,]+/);
+    return Array.isArray(d) && items.length === d.length && items.every((x, i) => String(+x) === String(+d[i]));
+  }
+  if (field.type === "int" || field.type === "float") return d !== null && d !== undefined && +v === +d;
+  return String(v) === String(d === null || d === undefined ? "" : d);
+}
+
 function fieldInput(field, value, onChange) {
   const id = `f-${field.flag.replace(/[^a-z0-9]/gi, "")}-${Math.random().toString(36).slice(2, 7)}`;
   const help = field.help || "";
+  const flagTag = el("span", { class: "flag-tag mono", text: field.flag });
   if (field.type === "bool") {
     const input = el("input", { type: "checkbox", id, "data-flag": field.flag });
-    input.checked = !!value;
+    input.checked = asBool(value);
     input.addEventListener("change", onChange);
-    return el("label", { class: "check field-check", title: help }, input, field.label);
+    return el("label", { class: "check field-check", title: help }, input, el("span", {}, field.label, flagTag));
+  }
+  if (field.type === "optional") {
+    // `--flag` alone, or `--flag VALUE`
+    const box = el("input", { type: "checkbox", "data-flag": field.flag, "data-kind": "optional" });
+    const num = el("input", { type: "number", step: "any", placeholder: "default", class: "opt-value" });
+    box.checked = !isEmptyVal(value);
+    if (value !== true && !isEmptyVal(value)) num.value = String(value);
+    num.disabled = !box.checked;
+    box.addEventListener("change", () => { num.disabled = !box.checked; onChange(); });
+    num.addEventListener("input", onChange);
+    return el("div", { class: "field", title: help },
+      el("span", {}, field.label, flagTag), el("div", { class: "opt-row" }, box, num));
   }
   let input;
   if (field.type === "choice") {
@@ -435,24 +483,26 @@ function fieldInput(field, value, onChange) {
     return fileFieldInput(field, value, onChange);
   } else {
     const isNum = field.type === "int" || field.type === "float";
+    const dflt = Array.isArray(field.default) ? field.default.join(" ") : field.default;
     input = el("input", {
       type: isNum ? "number" : "text", id, "data-flag": field.flag,
       step: field.type === "int" ? "1" : "any",
-      placeholder: value === null || value === undefined ? "auto" : "",
+      placeholder: dflt === null || dflt === undefined || dflt === "" ? "auto" : String(dflt),
     });
     if (Array.isArray(value)) input.value = value.join(" ");
     else if (value !== null && value !== undefined) input.value = String(value);
   }
   input.addEventListener("input", onChange);
   input.addEventListener("change", onChange);
-  return el("label", { class: "field", for: id, title: help }, field.label, input);
+  return el("label", { class: "field", for: id, title: help }, el("span", {}, field.label, flagTag), input);
 }
 
 function fileFieldInput(field, value, onChange) {
   const multi = field.type === "files";
   const names = el("span", { class: "muted small" });
   const ids = Array.isArray(value) ? value : value ? [value] : [];
-  const holder = el("label", { class: "field", title: field.help || "" }, field.label);
+  const holder = el("label", { class: "field", title: field.help || "" },
+    el("span", {}, field.label, el("span", { class: "flag-tag mono", text: field.flag })));
   holder.dataset.flag = field.flag;
   holder.dataset.ids = JSON.stringify(ids);
   names.textContent = ids.length ? `${ids.length} file(s) uploaded` : "no file";
@@ -484,10 +534,82 @@ function readForm(container) {
       if (ids.length) values[flag] = node.querySelector("input").multiple ? ids : ids[0];
       return;
     }
-    if (node.type === "checkbox") values[flag] = node.checked;
+    if (node.dataset.kind === "optional") {
+      const num = node.parentElement.querySelector(".opt-value").value;
+      values[flag] = node.checked ? (num === "" ? true : num) : false;
+    } else if (node.type === "checkbox") values[flag] = node.checked;
     else values[flag] = node.value;
   });
   return values;
+}
+
+/** Render `fields` (grouped in `sections`) into `container`; returns {flag: field}. */
+function renderOptionForm(container, sections, values, onChange, openState) {
+  container.innerHTML = "";
+  const byFlag = {};
+  for (const sec of sections) {
+    const grid = el("div", { class: "form-grid" });
+    for (const f of sec.fields) {
+      byFlag[f.flag] = f;
+      const v = f.flag in values ? values[f.flag] : f.default;
+      const wrap = el("div", { class: "fwrap", "data-field": f.flag }, fieldInput(f, v, onChange));
+      if (f.help) wrap.append(el("div", { class: "help-line", title: f.help, text: f.help }));
+      if (f.show_if && f.show_if.length) wrap.append(el("div", { class: "cond-note", text: `needs ${f.show_if.map(condText).join(", ")}` }));
+      grid.append(wrap);
+    }
+    if (sec.title === null) { container.append(grid); continue; }
+    const badge = el("span", { class: "sec-badge" });
+    const det = el("details", { class: "opt-section", "data-title": sec.title },
+      el("summary", {}, el("span", { text: sec.title }), badge), grid);
+    det.open = openState && sec.title in openState ? openState[sec.title] : !!sec.open;
+    if (openState) det.addEventListener("toggle", () => { openState[sec.title] = det.open; });
+    container.append(det);
+  }
+  return byFlag;
+}
+
+/** Show / hide fields by their show_if rules and the option filter; mark changed values. */
+function applyVisibility(container, byFlag, filter = "") {
+  const values = readForm(container);
+  const q = filter.trim().toLowerCase();
+  let hiddenMatches = 0;
+  $$(".fwrap", container).forEach((w) => {
+    const f = byFlag[w.dataset.field];
+    const active = (f.show_if || []).every((c) => condHolds(c, values, byFlag));
+    const match = !q || `${f.label} ${f.flag} ${f.help}`.toLowerCase().includes(q);
+    w.classList.toggle("hidden", !match || (!active && !q));
+    w.classList.toggle("inactive", !active);
+    $$("input, select", w).forEach((i) => { if (!i.classList.contains("opt-value")) i.disabled = !active; });
+    w.classList.toggle("changed", active && f.type !== "file" && f.type !== "files" && !sameValue(f, values[f.flag]));
+    if (q && match && !active) hiddenMatches += 1;
+  });
+  $$(".opt-section", container).forEach((d) => {
+    const shown = $$(".fwrap", d).filter((w) => !w.classList.contains("hidden"));
+    d.classList.toggle("hidden", !shown.length);
+    if (q && shown.length) d.open = true;
+    const n = shown.filter((w) => w.classList.contains("changed")).length;
+    const badge = $(".sec-badge", d);
+    badge.textContent = n ? `${n} set` : `${shown.length}`;
+    badge.classList.toggle("on", n > 0);
+  });
+  return hiddenMatches;
+}
+
+S.openSections = {};
+S.taskFields = {};
+S.potFields = {};
+
+function refreshTaskVisibility() {
+  const q = $("#opt-filter").value;
+  const inactive = applyVisibility($("#task-form"), S.taskFields, q);
+  const note = $("#opt-filter-note");
+  note.textContent = q && inactive ? `${inactive} matching option(s) are inactive with the current choices (greyed).` : "";
+}
+
+function onTaskChange() {
+  S.taskValues[S.task] = readForm($("#task-form"));
+  refreshTaskVisibility();
+  schedulePreview();
 }
 
 function renderTasks() {
@@ -501,13 +623,13 @@ function renderTasks() {
   }
   const t = S.schema.tasks[S.task];
   $("#task-desc").textContent = t.description;
-  const form = $("#task-form");
-  form.innerHTML = "";
-  const saved = S.taskValues[S.task] || {};
-  for (const f of t.fields) {
-    const v = f.flag in saved ? saved[f.flag] : f.default;
-    form.append(fieldInput(f, v, schedulePreview));
-  }
+  const n = t.fields.length;
+  $("#opt-count").textContent = `${n} options · ${t.sections.length} sections`;
+  S.openSections[S.task] = S.openSections[S.task] || {};
+  S.taskFields = renderOptionForm($("#task-form"), t.sections, S.taskValues[S.task] || {}, onTaskChange, S.openSections[S.task]);
+  refreshTaskVisibility();
+  const shown = $$(".opt-section", $("#task-form")).filter((d) => !d.classList.contains("hidden"));
+  $("#opt-expand").textContent = shown.length && shown.every((d) => d.open) ? "Collapse all" : "Expand all";
   renderPotentialForm();
   schedulePreview();
 }
@@ -516,11 +638,9 @@ function renderPotentialForm() {
   const t = S.schema.tasks[S.task];
   const fields = t.potential_fields[S.potential] || [];
   const form = $("#potential-form");
-  form.innerHTML = "";
-  for (const f of fields) {
-    const v = f.flag in S.potValues ? S.potValues[f.flag] : f.default;
-    form.append(fieldInput(f, v, () => { S.potValues = readForm(form); schedulePreview(); }));
-  }
+  const onChange = () => { S.potValues = readForm(form); applyVisibility(form, S.potFields); schedulePreview(); };
+  S.potFields = renderOptionForm(form, [{ title: null, fields }], S.potValues, onChange, null);
+  applyVisibility(form, S.potFields);
   if (!fields.length) form.append(el("p", { class: "muted small", text: "No extra options for this potential." }));
 }
 
@@ -530,6 +650,85 @@ $("#potential").addEventListener("change", (e) => {
   renderPotentialForm();
   renderEnvSelect(true);
   schedulePreview();
+});
+$("#opt-filter").addEventListener("input", refreshTaskVisibility);
+$("#opt-reset").addEventListener("click", () => {
+  S.taskValues[S.task] = {};
+  S.potValues = {};
+  renderTasks();
+  toast("Options reset to the CLI defaults");
+});
+$("#opt-expand").addEventListener("click", () => {
+  const dets = $$(".opt-section", $("#task-form")).filter((d) => !d.classList.contains("hidden"));
+  const open = !dets.every((d) => d.open);
+  dets.forEach((d) => { d.open = open; });
+  $("#opt-expand").textContent = open ? "Collapse all" : "Expand all";
+});
+
+// ------------------------------------------------------------------ config files (mars --config)
+function downloadText(filename, text, type = "application/toml") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = el("a", { href: url, download: filename });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$("#cfg-save").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/config/export", { method: "POST", body: buildPayload() });
+    downloadText(res.filename, res.text);
+  } catch (e) { toast(`Cannot save the config: ${e.message}`, true); }
+});
+
+$("#cfg-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const res = await api("/api/config/import", { method: "POST", body: { filename: file.name, text: await file.text() } });
+    applyLoadedConfig(res, file.name);
+  } catch (err) { toast(`Cannot load ${file.name}: ${err.message}`, true); }
+});
+
+function applyLoadedConfig(res, name) {
+  const p = res.payload;
+  S.task = p.task;
+  S.taskValues[p.task] = p.options;
+  S.potential = p.potential;
+  $("#potential").value = p.potential;
+  S.potValues = p.potential_options;
+  $("#charge").value = p.charge;
+  $("#spin").value = p.spin;
+  $("#float64").checked = !!p.float64;
+  $("#device").value = p.device;
+  $("#advanced").value = p.advanced || "";
+  if (p.name) $("#job-name").value = p.name;
+  renderTasks();
+  renderEnvSelect(true);
+  const notes = [...res.warnings];
+  if (res.input && (!S.structure || (S.structure.filename !== res.input && S.structure.run_name !== res.input))) {
+    notes.unshift(`The config names the input ${res.input}: load that structure in step 1.`);
+  }
+  const box = $("#cfg-notice");
+  box.innerHTML = "";
+  box.append(el("strong", { text: `Loaded ${name}` }), ...notes.map((n) => el("div", { text: n })));
+  box.classList.remove("hidden");
+  toast(`Loaded ${name}`);
+}
+$("#cfg-notice").addEventListener("click", (e) => e.currentTarget.classList.add("hidden"));
+
+$$("#preview-seg button").forEach((b) => b.addEventListener("click", () => {
+  $$("#preview-seg button").forEach((x) => x.classList.toggle("active", x === b));
+  $("#cmd-preview").classList.toggle("hidden", b.dataset.view !== "cmd");
+  $("#cfg-preview").classList.toggle("hidden", b.dataset.view !== "config");
+}));
+$("#preview-copy").addEventListener("click", async () => {
+  const cfg = !$("#cfg-preview").classList.contains("hidden");
+  const text = (cfg ? $("#cfg-preview") : $("#cmd-preview")).textContent;
+  try { await navigator.clipboard.writeText(text); toast(cfg ? "Config copied" : "Command copied"); }
+  catch (e) { toast("Copy failed: select the text instead", true); }
 });
 
 // ------------------------------------------------------------------ models & environments
@@ -708,6 +907,7 @@ function buildPayload() {
     python: $("#env-select").value || undefined,
     advanced: $("#advanced").value,
     name: $("#job-name").value,
+    input_name: S.structure ? S.structure.run_name || S.structure.filename : null,
   };
 }
 
@@ -723,6 +923,7 @@ async function updatePreview() {
     const res = await api("/api/preview", { method: "POST", body: buildPayload() });
     const inputName = S.structure ? S.structure.run_name || S.structure.filename : "<input>";
     $("#cmd-preview").textContent = res.command.replace("input.xyz", inputName);
+    $("#cfg-preview").textContent = res.config;
     err.classList.add("hidden");
   } catch (e) {
     err.textContent = e.message;

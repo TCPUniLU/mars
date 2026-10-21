@@ -19,7 +19,10 @@ spectroscopy, and explicit solvation — built on one pluggable potential layer
 ## Start with the graphical interface
 
 Everything MARS does can be run from your browser: load a structure, choose a
-task and a model, follow the run, and look at the conformers and spectra.
+task and a model (every command-line option is in the form, which shows only
+the ones that apply to your choices), follow the run, and look at the
+conformers and spectra. Settings can be saved and loaded as `mars --config`
+files.
 The GUI also shows which models are installed in which Python environment,
 installs the missing ones, and lists the references to cite for each job.
 

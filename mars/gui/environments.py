@@ -33,7 +33,7 @@ def families(demo: bool = False) -> List[dict]:
         dict(
             id="core",
             label="MARS core (JAX)",
-            potentials=["harmonic", "lj"],
+            potentials=["harmonic", "lj", "valence"],
             modules=["mars", "jax", "jax_md"],
             about="MARS itself with JAX. Pick the JAX build for your GPU (CUDA 12 or 13) or CPU.",
             install=['pip install -U "{jax}"', f"pip install {_spec('')}"],

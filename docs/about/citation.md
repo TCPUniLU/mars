@@ -9,16 +9,16 @@ or BibTeX), taken from this page.
 
 ## MARS itself
 
-MARS is described in a preprint of the same title; please cite it:
+MARS is described in a article of the same title in the *Journal of Chemical Theory
+and Computation*; please cite it:
 
 ```bibtex
 @article{mars2026,
   title   = {MARS: Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation},
-  author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Tkatchenko, Alexandre},
-  journal = {ChemRxiv},
+  author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Br{\"u}nig, Florian N. and Tkatchenko, Alexandre},
+  journal = {Journal of Chemical Theory and Computation},
   year    = {2026},
-  doi     = {10.26434/chemrxiv.15007087/v1},
-  note    = {Preprint}
+  doi     = {10.1021/acs.jctc.6c01588}
 }
 ```
 
@@ -316,7 +316,7 @@ the files you use.
 ## Implementation credits
 
 Several potentials run on JAX code written by the jax-md community. Please
-acknowledge these contributors (GitHub handles) along with the papers above:
+acknowledge these contributors (GitHub handles) along with the articles above:
 
 | MARS potential | jax-md contribution | Contributors |
 |----------------|---------------------|--------------|
@@ -387,7 +387,7 @@ readers are MARS code.
 
 ```bibtex
 % The atomic simulation environment (ASE)
-@article{ase-paper,
+@article{ase-article,
   author={Ask Hjorth Larsen and Jens Jørgen Mortensen and Jakob Blomqvist and Ivano E Castelli and Rune Christensen and Marcin
 Dułak and Jesper Friis and Michael N Groves and Bjørk Hammer and Cory Hargus and Eric D Hermes and Paul C Jennings and Peter
 Bjerre Jensen and James Kermode and John R Kitchin and Esben Leonhard Kolsbjerg and Joseph Kubal and Kristen

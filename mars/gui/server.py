@@ -57,7 +57,7 @@ from pathlib import Path
 from typing import Optional
 
 from .. import __version__, citations
-from . import plugins, structures
+from . import plugins, runconfig, structures
 from .environments import GPU_CHOICES, Environments, families
 from .jobs import JobRunner, JobStore, PayloadError, build_command, format_command, get_schema
 
@@ -126,6 +126,13 @@ class GuiApp:
         if not self.envs.known(py):
             raise ValueError("unknown environment for this job")
         return py
+
+    def upload_name(self, upload_id: str) -> str:
+        """Filename of an upload (the id itself when it is unknown)."""
+        try:
+            return self.store.upload_path(str(upload_id)).name
+        except (FileNotFoundError, PermissionError):
+            return str(upload_id)
 
     def job_view(self, job_id: str) -> dict:
         job = self.store.get(job_id)
@@ -337,7 +344,23 @@ def _make_handler(app: GuiApp, loopback_only: bool):
             if head == "preview" and method == "POST":
                 payload = self._read_json()
                 cmd = build_command(payload, "input.xyz", python="python")
-                return self._send_json({"command": format_command(cmd["argv"], cmd["env"])})
+                _, config = runconfig.export_config(
+                    payload, payload.get("input_name"), app.upload_name, __version__
+                )
+                return self._send_json(
+                    {"command": format_command(cmd["argv"], cmd["env"]), "config": config}
+                )
+            if head == "config" and method == "POST" and parts[1:] == ["export"]:
+                payload = self._read_json()
+                filename, text = runconfig.export_config(
+                    payload, payload.get("input_name"), app.upload_name, __version__
+                )
+                return self._send_json({"filename": filename, "text": text})
+            if head == "config" and method == "POST" and parts[1:] == ["import"]:
+                body = self._read_json()
+                filename = str(body.get("filename") or "config.toml")
+                sections = runconfig.parse_config(str(body.get("text") or ""), filename)
+                return self._send_json(runconfig.config_to_payload(sections, body.get("task")))
             if head == "envs":
                 return self._envs(method, parts[1:])
             if head != "jobs":

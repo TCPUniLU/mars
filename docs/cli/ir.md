@@ -24,8 +24,16 @@ See the [user guide](../guide/ir_spectroscopy.md) for concepts and
 | `--dipole-save-fs FS` | 2.5 | Save dipole every N fs (MD-based) |
 | `--n-replicas N` | 1 | Independent MD replicas with different seeds |
 | `--chop N` | 10 | Split trajectory into N segments for averaging |
-| `--window {hann,hamming,blackman,bartlett,none}` | `hann` | Autocorrelation window |
-| `--trajectory-file FILE` | — | Save NVE trajectory as HDF5 |
+| `--window {hann,hamming,blackman,bartlett,bh,gaussian,none}` | `hann` | Window applied to the dipole signal (`bh`: 4-term Blackman-Harris) |
+| `--trajectory-file FILE` | — | Save the NVE trajectory as HDF5 (all replicas / conformers in one file; one file per run with `--not-parallel`) |
+| `--not-parallel` | off | Run replicas / conformers one after another instead of vmapped together |
+
+## System
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--temperature K` | 300 | NVT thermostat for MD-based IR; Boltzmann populations of the normal modes for the Hessian path |
+| `--charge Q` | 0 | Total charge (see [Potentials](../guide/potentials/index.md) for `--potential`, `--spin` and the model options) |
 
 ## Geometry
 

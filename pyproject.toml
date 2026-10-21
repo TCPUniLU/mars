@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mars"
-version = "1.0.0"
+version = "1.0.1"
 description = "MARS — Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -118,6 +118,7 @@ docs = [
 "Bug Reports" = "https://github.com/TCPUniLU/mars/issues"
 "Source" = "https://github.com/TCPUniLU/mars"
 "Documentation" = "https://tcpunilu.github.io/mars/"
+"article" = "https://doi.org/10.1021/acs.jctc.6c01588"
 
 [project.scripts]
 mars = "mars.cli:main"

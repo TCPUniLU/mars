@@ -460,7 +460,9 @@ Examples:
         "--trajectory-file",
         type=str,
         default=None,
-        help="Save MD-based NVE trajectory to a specified HDF5 file (default: None)",
+        help="Save the MD-based NVE trajectory to an HDF5 file. With --n-replicas > 1 or "
+        "--all-conformers, all trajectories are stored in this one file (parallel run) or "
+        "in one file per run with a _c<conf>_r<rep> suffix (--not-parallel) (default: None)",
     )
     ir_parser.add_argument(
         "--chop",
@@ -472,8 +474,9 @@ Examples:
         "--window",
         type=str,
         default="hann",
-        choices=["hann", "hamming", "blackman", "bartlett", "none"],
-        help="Window function for IR autocorrelation (default: hann)",
+        choices=["hann", "hamming", "blackman", "bartlett", "bh", "gaussian", "none"],
+        help="Window function applied to the dipole signal for MD-IR: hann, hamming, "
+        "blackman, bartlett, bh (4-term Blackman-Harris), gaussian, or none (default: hann)",
     )
     ir_parser.add_argument(
         "--save-hessian",
@@ -921,10 +924,10 @@ def _add_conformer_search_arguments(parser):
         type=float,
         default=3.0,
         metavar="Å",
-        help="Maximum allowed inter-fragment contact distance (Å) above the initial "
-        "closest atom–atom contact between fragments (default: 3.0). Structures "
-        "where fragments drift further apart are discarded at each optimization "
-        "cycle. Only used with --nci.",
+        help="Base inter-fragment contact threshold (Å). The cutoff is max(initial "
+        "closest atom-atom contact between fragments, this value), relaxed in early "
+        "optimization cycles (default: 3.0). Structures whose fragments drift further "
+        "apart are discarded at each optimization cycle. Only used with --nci.",
     )
 
     # MTD parameters
@@ -1484,7 +1487,8 @@ Examples:
         "--baro-k",
         type=float,
         default=5.0,
-        help="Wall force constant in eV/Å² (default: 5.0)",
+        help="Wall force constant in eV (the wall argument d/r_out - 1 is dimensionless; "
+        "default: 5.0)",
     )
     baro_group.add_argument(
         "--baro-wall-mode",

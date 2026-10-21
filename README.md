@@ -1,9 +1,10 @@
 # MARS
 
 > **MA**chine-Learned Force Field F**R**amework for Automated
-> Confomational **S**ampling, Vibrational Spectroscopy, and
+> Conformational **S**ampling, Vibrational Spectroscopy, and
 > Microsolvation — JAX-native and GPU-accelerated.
 
+[![DOI](https://img.shields.io/badge/DOI-10.1021%2Facs.jctc.6c01588-blue.svg)](https://doi.org/10.1021/acs.jctc.6c01588)
 [![Documentation](https://img.shields.io/badge/docs-tcpunilu.github.io%2Fmars-blue.svg)](https://tcpunilu.github.io/mars/)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![JAX](https://img.shields.io/badge/JAX-0.4.20+-orange.svg)](https://github.com/google/jax)
@@ -26,9 +27,10 @@ and an automatic-configuration system:
 
 ## Graphical interface
 
-Run every MARS calculation from your browser, see the results in 3D, manage
-the models installed in each Python environment, and get the references to
-cite for each job:
+Run every MARS calculation from your browser with every command-line option
+(the form adapts to your choices), save the settings as `mars --config` files,
+see the results in 3D, manage the models installed in each Python environment,
+and get the references to cite for each job:
 
 ```bash
 mars gui
@@ -149,16 +151,16 @@ issue or email us and we'll help (and happily link or upstream it). See the
 
 ## Citation
 
-MARS is described in a preprint of the same title — please cite it:
+MARS is described in a article of the same title in the *Journal of Chemical Theory
+and Computation* ([doi:10.1021/acs.jctc.6c01588](https://doi.org/10.1021/acs.jctc.6c01588)) — please cite it:
 
 ```bibtex
 @article{mars2026,
   title   = {MARS: Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation},
-  author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Tkatchenko, Alexandre},
-  journal = {ChemRxiv},
+  author  = {Su{\'a}rez-Dou, Sergio and Gallegos, Miguel and Br{\"u}nig, Florian N. and Tkatchenko, Alexandre},
+  journal = {Journal of Chemical Theory and Computation},
   year    = {2026},
-  doi     = {10.26434/chemrxiv.15007087/v1},
-  note    = {Preprint}
+  doi     = {10.1021/acs.jctc.6c01588}
 }
 ```
 

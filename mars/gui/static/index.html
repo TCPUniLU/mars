@@ -126,10 +126,25 @@
 
       <!-- Task -->
       <div class="card">
-        <div class="card-head"><h2>2 · Task</h2></div>
+        <div class="card-head">
+          <h2>2 · Task</h2>
+          <div class="head-actions">
+            <label class="btn ghost small" title="Load a mars --config file">Load config…
+              <input id="cfg-file" type="file" accept=".toml,.cfg,.ini,.conf,.txt" hidden></label>
+            <button class="btn ghost small" id="cfg-save" type="button" title="Save these settings as a config file for mars --config">Save config</button>
+          </div>
+        </div>
+        <div id="cfg-notice" class="notice hidden" title="Click to dismiss"></div>
         <div id="task-list" class="task-list"></div>
         <p id="task-desc" class="muted small"></p>
-        <form id="task-form" class="form-grid" onsubmit="return false"></form>
+        <div class="opt-toolbar">
+          <input type="search" id="opt-filter" placeholder="Find an option…" title="Searches option names, flags and help texts" aria-label="Find an option">
+          <span id="opt-count" class="muted small"></span>
+          <button class="btn ghost small" id="opt-expand" type="button">Expand all</button>
+          <button class="btn ghost small" id="opt-reset" type="button" title="Back to the CLI defaults">Reset</button>
+        </div>
+        <div id="opt-filter-note" class="muted small"></div>
+        <form id="task-form" class="opt-form" onsubmit="return false"></form>
 
         <h3>Potential</h3>
         <div class="row">
@@ -137,7 +152,7 @@
             <select id="potential"></select>
           </label>
         </div>
-        <div id="potential-form" class="form-grid"></div>
+        <div id="potential-form" class="opt-form"></div>
 
         <h3>Run settings</h3>
         <div class="row">
@@ -160,14 +175,21 @@
         <details>
           <summary>Advanced arguments</summary>
           <input type="text" id="advanced" class="mono" placeholder="e.g. --maxiter 500 --log-level DEBUG">
-          <p class="muted small">Passed verbatim to the MARS command line (see <code>mars &lt;task&gt; --help</code>).</p>
+          <p class="muted small">Passed verbatim to the MARS command line (see <code>mars &lt;task&gt; --help</code>). Every option is also in the form above.</p>
         </details>
         <label class="field">Job name (optional)
           <input type="text" id="job-name" maxlength="80" placeholder="e.g. aspirin SO3LR opt">
         </label>
         <div class="cmd-preview">
-          <div class="muted small">Command</div>
+          <div class="preview-head">
+            <div class="seg small" id="preview-seg">
+              <button type="button" data-view="cmd" class="active">Command</button>
+              <button type="button" data-view="config">Config file</button>
+            </div>
+            <button class="btn ghost small" id="preview-copy" type="button">Copy</button>
+          </div>
           <code id="cmd-preview" class="mono">—</code>
+          <pre id="cfg-preview" class="mono hidden">—</pre>
         </div>
         <div id="form-error" class="error hidden"></div>
         <div class="actions">
@@ -322,9 +344,9 @@
       <div class="card">
         <div class="card-head"><h2>Cite MARS</h2></div>
         <p>If you use MARS in published work, please cite:</p>
-        <blockquote class="cite">S. Suárez-Dou, M. Gallegos, A. Tkatchenko, <i>MARS: Machine-Learned Force Field
+        <blockquote class="cite">S. Suárez-Dou, M. Gallegos, F. N. Brünig, A. Tkatchenko, <i>MARS: Machine-Learned Force Field
           Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation</i>,
-          ChemRxiv (2026). <a href="https://doi.org/10.26434/chemrxiv.15007087/v1" target="_blank" rel="noopener">doi:10.26434/chemrxiv.15007087/v1</a></blockquote>
+          J. Chem. Theory Comput. (2026). <a href="https://doi.org/10.1021/acs.jctc.6c01588" target="_blank" rel="noopener">doi:10.1021/acs.jctc.6c01588</a></blockquote>
         <p class="muted small">Each job's page lists the references for the methods and models it used
           (<i>Cite this job</i>). The full list, with BibTeX, is in the documentation:
           <a href="https://tcpunilu.github.io/mars/about/citation/" target="_blank" rel="noopener">Citation</a>.</p>

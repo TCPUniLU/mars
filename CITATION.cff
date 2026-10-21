@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use MARS, please cite the article below."
+title: "MARS: Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
+type: software
+version: 1.0.1
+license: MIT
+repository-code: "https://github.com/TCPUniLU/mars"
+url: "https://tcpunilu.github.io/mars/"
+authors:
+  - family-names: "Suárez-Dou"
+    given-names: "Sergio"
+  - family-names: "Gallegos"
+    given-names: "Miguel"
+  - family-names: "Brünig"
+    given-names: "Florian N."
+  - family-names: "Tkatchenko"
+    given-names: "Alexandre"
+keywords:
+  - machine-learned force fields
+  - conformational sampling
+  - IR spectroscopy
+  - microsolvation
+  - JAX
+preferred-citation:
+  type: article
+  title: "MARS: Machine-Learned Force Field Framework for Automated Conformational Sampling, Vibrational Spectroscopy, and Microsolvation"
+  authors:
+    - family-names: "Suárez-Dou"
+      given-names: "Sergio"
+    - family-names: "Gallegos"
+      given-names: "Miguel"
+    - family-names: "Brünig"
+      given-names: "Florian N."
+    - family-names: "Tkatchenko"
+      given-names: "Alexandre"
+  journal: "Journal of Chemical Theory and Computation"
+  year: 2026
+  doi: "10.1021/acs.jctc.6c01588"
+  url: "https://doi.org/10.1021/acs.jctc.6c01588"

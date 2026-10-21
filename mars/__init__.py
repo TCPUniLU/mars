@@ -11,7 +11,7 @@ This lets lightweight, JAX-free tools (e.g. ``mars viewer``) run in
 environments without a working JAX/GPU stack.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # ============================================================================
 # Suppress external package warnings by default

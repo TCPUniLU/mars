@@ -33,7 +33,9 @@ mars gui --install-desktop            # clickable launcher in the application me
 
 Each GUI job is an ordinary `mars` command run in its own folder under
 `--workdir/jobs/`, with its input, outputs, `run.log`, the command
-(`command.sh`) and a `job.json` record. A job runs with the Python environment
+(`command.sh`), the same settings as a [config file](../config/overview.md)
+(`config.toml`, run it with `mars <task> --config config.toml`) and a
+`job.json` record. A job runs with the Python environment
 chosen in the page; the environments the GUI knows (its own, every conda
 environment and the ones added under *Models & environments*) are listed in
 `--workdir/gui_settings.json` together with the default one.

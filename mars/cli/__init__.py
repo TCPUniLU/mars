@@ -48,12 +48,15 @@ def _detect_command(argv):
     return None
 
 
-def _inject_config_defaults(argv, command):
+def _inject_config_defaults(argv, command, parser=None):
     """If *argv* contains ``--config FILE``, load the file and merge its
     values into *argv* so that explicit CLI flags still take precedence.
 
     For subcommand modes the subcommand name is kept as the leading token so
-    argparse routes the config-supplied flags to the correct subparser.
+    argparse routes the config-supplied flags to the correct subparser.  The
+    input file (from the command line, else the config's ``input`` key) is
+    placed before the config flags, so a list-valued option such as
+    ``layers = [6, 12]`` cannot swallow it.
 
     Returns ``(config_path, input_from_config, effective_argv)``.
     *config_path* is ``None`` when no ``--config`` flag was given.
@@ -71,17 +74,80 @@ def _inject_config_defaults(argv, command):
         print(f"mars: error loading config file '{config_path}': {exc}", file=sys.stderr)
         sys.exit(1)
 
-    if command is not None and argv_clean and argv_clean[0] == command:
-        # Subcommand mode: keep the subcommand name first, splice config
-        # defaults right after it, then the remaining user flags.  Explicit
-        # CLI flags appear *after* config defaults so they override.
-        merged = [command] + config_argv + argv_clean[1:]
+    subcommand = command is not None and bool(argv_clean) and argv_clean[0] == command
+    user_args = argv_clean[1:] if subcommand else argv_clean
+    if parser is not None:
+        target = _subparser(parser, command) if subcommand else parser
+        positionals, user_flags = _split_positionals(user_args, _flag_nargs(target))
     else:
-        # Default conformer-search mode (no subcommand): config defaults
-        # first, then explicit CLI flags (which override on duplicates).
-        merged = config_argv + argv_clean
+        positionals, user_flags = [], user_args
+    if not positionals and input_from_config is not None:
+        positionals = [str(input_from_config)]
+
+    # Input first, then config defaults, then the explicit CLI flags (which
+    # come last so they override the config on duplicates).  In subcommand
+    # mode the subcommand name stays the leading token.
+    merged = positionals + config_argv + user_flags
+    if subcommand:
+        merged = [command] + merged
 
     return config_path, input_from_config, merged
+
+
+def _subparser(parser, command):
+    """The argparse subparser of *command* (falls back to *parser*)."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return action.choices.get(command, parser)
+    return parser
+
+
+def _flag_nargs(parser):
+    """Return ``{option_string: nargs}`` for every value-taking option."""
+    valued = _value_taking_flags(parser)
+    return {
+        opt: action.nargs
+        for action in parser._actions
+        for opt in action.option_strings
+        if opt in valued
+    }
+
+
+def _split_positionals(argv, nargs_of):
+    """Split *argv* into ``(positionals, flags_with_their_values)``.
+
+    Values are counted like argparse does: one for a plain option, *n* for
+    ``nargs=n``, and every following non-option token for ``+`` / ``*``.
+    """
+    positionals, flags = [], []
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        i += 1
+        if not arg.startswith("-") or arg == "-":
+            positionals.append(arg)
+            continue
+        flags.append(arg)
+        if "=" in arg or arg not in nargs_of:
+            continue
+        n = nargs_of[arg]
+        if n in ("+", "*"):
+            while i < len(argv) and not (argv[i].startswith("-") and not _is_number(argv[i])):
+                flags.append(argv[i])
+                i += 1
+        else:
+            take = n if isinstance(n, int) else 1
+            flags.extend(argv[i : i + take])
+            i += take
+    return positionals, flags
+
+
+def _is_number(token):
+    try:
+        float(token)
+        return True
+    except ValueError:
+        return False
 
 
 def _value_taking_flags(parser):
@@ -168,7 +234,9 @@ def main():
     command = _detect_command(args_without_config)
 
     # Now build the effective argv (config defaults merged with explicit CLI flags).
-    config_path, input_from_config, effective_args = _inject_config_defaults(raw_args, command)
+    config_path, input_from_config, effective_args = _inject_config_defaults(
+        raw_args, command, parser
+    )
 
     if command == "ir":
         from ._common import setup_debug_mode

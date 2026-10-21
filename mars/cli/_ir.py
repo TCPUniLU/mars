@@ -32,7 +32,7 @@ def run_ir_workflow(args):
 
     n_replicas = getattr(args, "n_replicas", 1)
     parallel = not getattr(args, "not_parallel", False)
-    window_arg = args.window if args.window != "none" else None
+    window_arg = args.window
     optimize = not getattr(args, "no_optimize", False)
 
     atoms_raw = getattr(args, "atoms", None)
@@ -150,6 +150,7 @@ def run_ir_workflow(args):
                 parallel=parallel,
                 potential_options=potential_options,
                 atom_indices=atom_indices,
+                trajectory_file=args.trajectory_file,
             )
 
             # Save averaged spectrum
