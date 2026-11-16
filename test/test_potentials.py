@@ -216,7 +216,7 @@ def _so3lr_available():
 
 
 def _so3lr_supports_model():
-    """True when the installed SO3LR exposes v2 model selection (so3lr_dev)."""
+    """True when the installed SO3LR exposes model selection (>= 0.2, Tauri models)."""
     import inspect
 
     from so3lr import So3lrPotential
@@ -231,8 +231,8 @@ class TestSO3LRVersionAdaptive:
     """SO3LR must work against BOTH the stable and developing packages.
 
     The loader introspects the installed SO3LR API; these tests assert the
-    default (v1) path works everywhere and that v2 model selection either
-    loads (developing package) or falls back with a warning (stable package).
+    default (v1) path works everywhere and that Tauri model selection either
+    loads (SO3LR >= 0.2) or falls back with a warning (v0.1.x).
     """
 
     @pytest.fixture
@@ -254,20 +254,20 @@ class TestSO3LRVersionAdaptive:
         assert np.isfinite(e)
 
     def test_model_selection_adapts_to_package(self, numbers, water):
-        """Requesting a v2 model builds it on the dev package; on stable it warns
+        """Requesting a Tauri model builds it on SO3LR >= 0.2; on v0.1.x it warns
         and falls back to v1 (never crashes)."""
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            pot = get_potential("so3lr", species=numbers, charge=0.0, model="so3lr-2-m")
+            pot = get_potential("so3lr", species=numbers, charge=0.0, model="so3lr-tauri-m")
             e = self._energy(pot, water)
         assert np.isfinite(e)
 
         model_warnings = [w for w in caught if "does not support model selection" in str(w.message)]
         if _so3lr_supports_model():
-            # developing package: v2 model loaded, no fallback warning
+            # SO3LR >= 0.2: Tauri model loaded, no fallback warning
             assert not model_warnings
         else:
-            # stable package: model selection ignored, warned, v1 used
+            # v0.1.x: model selection ignored, warned, v1 used
             assert model_warnings
 
     @pytest.mark.parametrize(
@@ -275,9 +275,12 @@ class TestSO3LRVersionAdaptive:
         [
             ("so3lr_v1", "so3lr-1"),
             ("so3lr", "so3lr-1"),
-            ("so3lr-s", "so3lr-2-s"),
-            ("so3lr-m", "so3lr-2-m"),
-            ("so3lr-l", "so3lr-2-l"),
+            ("so3lr-s", "so3lr-tauri-s-2606"),
+            ("so3lr-m", "so3lr-tauri-m-2606"),
+            ("so3lr-l", "so3lr-tauri-l-2606"),
+            ("so3lr-2-s", "so3lr-tauri-s-2606"),
+            ("so3lr-2-m", "so3lr-tauri-m-2606"),
+            ("so3lr-2-l", "so3lr-tauri-l-2606"),
         ],
     )
     def test_deprecated_model_names_still_work(self, numbers, water, deprecated, current):
@@ -298,10 +301,21 @@ class TestSO3LRVersionAdaptive:
             e_cur = self._energy(pot_cur, water)
         cur_dep_warnings = [w for w in caught2 if issubclass(w.category, DeprecationWarning)]
         assert not cur_dep_warnings, f"{current!r} should not raise DeprecationWarning"
-
         assert e_dep == pytest.approx(
             e_cur
         ), f"{deprecated!r} and {current!r} should resolve to the identical model"
+
+    def test_tauri_releases_are_selectable(self, numbers, water):
+        """Both Tauri releases (2602, 2606) load; the undated name is the latest (2606)."""
+        if not _so3lr_supports_model():
+            pytest.skip("installed SO3LR has no model selection")
+        e = {}
+        for name in ("so3lr-tauri-m", "so3lr-tauri-m-2606", "so3lr-tauri-m-2602"):
+            pot = get_potential("so3lr", species=numbers, charge=0.0, model=name)
+            e[name] = self._energy(pot, water)
+            assert np.isfinite(e[name])
+        assert e["so3lr-tauri-m"] == e["so3lr-tauri-m-2606"]
+        assert e["so3lr-tauri-m-2602"] != e["so3lr-tauri-m-2606"]
 
 
 # ============================================================================
@@ -525,10 +539,10 @@ class TestModelInputValidation:
 @pytest.mark.requires_so3lr
 def test_so3lr_v2_elements_follow_qcml():
     if not _so3lr_supports_model():
-        pytest.skip("so3lr v2 models not installed")
+        pytest.skip("so3lr Tauri models not installed")
     with pytest.raises(ValueError, match="does not support element"):
-        get_potential("so3lr", species=[56, 8], model="so3lr-2-m")
-    get_potential("so3lr", species=[26, 8], model="so3lr-2-m")
+        get_potential("so3lr", species=[56, 8], model="so3lr-tauri-m")
+    get_potential("so3lr", species=[26, 8], model="so3lr-tauri-m")
 
 
 @pytest.mark.parametrize("name", ["aimnet2", "aceff", "so3lr_jaxmd"])

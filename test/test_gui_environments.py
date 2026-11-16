@@ -76,6 +76,31 @@ def test_citations_match_the_docs_and_cover_every_potential():
     assert ref["doi"] == "10.1021/jacs.5c09558" and "2025" in ref["text"]
 
 
+def test_so3lr_tauri_models_cite_the_tauri_preprint():
+    from mars import citations
+
+    def keys(model, backend=None):
+        opts = {"--so3lr-model": model} if model else {}
+        if backend:
+            opts["--so3lr-backend"] = backend
+        return citations.for_job({"task": "ir", "potential": "so3lr", "potential_options": opts})
+
+    for model in (
+        "so3lr-tauri-m",
+        "so3lr-tauri-l-2602",
+        "so3lr-tauri-s-2606",
+        "so3lr-2-m",
+        "so3lr-m",
+    ):
+        k = keys(model)
+        assert k.index("kabylda2026so3lr") < k.index("kabylda2025so3lr"), model
+    for model in (None, "so3lr-1", "so3lr", "/path/to/so3lr-tauri-model"):
+        assert "kabylda2026so3lr" not in keys(model), model
+    assert "kabylda2026so3lr" not in keys("so3lr-tauri-m", backend="jaxmd")
+    ref = citations.format_ref("kabylda2026so3lr")
+    assert ref["doi"] == "10.48550/arXiv.2611.06237" and "SO3LR Tauri" in ref["text"]
+
+
 def test_demo_is_read_only_and_shows_nothing_local(tmp_path):
     """The demo runs nothing and exposes no local path or interpreter."""
     import os

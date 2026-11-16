@@ -641,7 +641,7 @@ class SO3LRJaxMDPotential(_JaxMDModelPotential):
         model_path: Optional local ``.eqx`` checkpoint.
         charge: Total charge.
         spin: Must be 1: the jax-md checkpoint is SO3LR v1, which is not
-            spin-aware (use ``so3lr`` with a v2 model for open-shell systems).
+            spin-aware (use ``so3lr`` with a Tauri model for open-shell systems).
     """
 
     NAME = "so3lr_jaxmd"

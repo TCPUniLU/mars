@@ -12,25 +12,28 @@ from the tabs below. The [overview](index.md) compares them all.
 
     ```bash
     mars input.xyz                                          # so3lr-1
-    mars input.xyz --so3lr-model so3lr-2-m                  # v2 medium
-    mars input.xyz --so3lr-model so3lr-2-m --charge -1 --spin 2   # radical anion (v2 only)
+    mars input.xyz --so3lr-model so3lr-tauri-m              # Tauri medium, latest release
+    mars input.xyz --so3lr-model so3lr-tauri-m-2602         # Tauri medium, February 2026 release
+    mars input.xyz --so3lr-model so3lr-tauri-m --charge -1 --spin 2   # radical anion (Tauri only)
     ```
 
-    | `--so3lr-model` | Model | Requires |
-    |-----------------|-------|----------|
-    | `so3lr-1` *(default)* | v1 | stable or developing package |
-    | `so3lr-2-s` / `so3lr-2-m` / `so3lr-2-l` | v2 small / medium (recommended) / large | developing package (`so3lr` ≥ 0.2) |
-    | *(a path)* | custom or fine-tuned workdir | developing package |
+    | `--so3lr-model` | Model |
+    |-----------------|-------|
+    | `so3lr-1` *(default)* | the original SO3LR model ([JACS 2025](https://doi.org/10.1021/jacs.5c09558)) |
+    | `so3lr-tauri-s` / `so3lr-tauri-m` / `so3lr-tauri-l` | [SO3LR Tauri](https://arxiv.org/abs/2611.06237) small / medium (start here) / large (most accurate), latest release |
+    | `so3lr-tauri-{s,m,l}-2606` / `-2602` | a pinned Tauri release (2606 is the current latest) |
+    | *(a path)* | custom or fine-tuned workdir |
 
     | Option | Meaning |
     |--------|---------|
-    | `--charge`, `--spin` | Total charge; spin multiplicity. Only the **v2** models are spin-aware (MARS passes M − 1 unpaired electrons). v1 is closed-shell only and refuses `--spin` ≠ 1 |
+    | `--charge`, `--spin` | Total charge; spin multiplicity. Only the **Tauri** models are spin-aware (MARS passes M − 1 unpaired electrons). v1 is closed-shell only and refuses `--spin` ≠ 1 |
     | `--lr-cutoff Å` | Long-range cutoff (1000 Å gas phase) |
     | `--so3lr-backend jaxmd` | Use jax-md's port (`jax_md._nn.so3lr`) instead of the `so3lr` package. It ships the v1 weights (closed-shell only), and its long-range cutoff is fixed at 12 Å. |
 
     **Install:** from source, see [Installation](../../install.md#so3lr-default-recommended).
-    The pre-release names `so3lr_v1`, `so3lr`, `so3lr-s/m/l` still work but
-    are deprecated.
+    The earlier names still work but are deprecated: `so3lr-2-s/m/l` and
+    `so3lr-s/m/l` load `so3lr-tauri-s/m/l-2606` (same weights), `so3lr_v1` and
+    `so3lr` load `so3lr-1`.
 
 === "MACE"
 
@@ -169,7 +172,7 @@ and electron count are checked first; a neutral radical, for example, needs
 
 | Potential | Charge | Spin input | What the model receives |
 |-----------|:------:|:----------:|-------------------------|
-| `so3lr` v2 (`so3lr-2-s/m/l`) | ✅ | ✅ | unpaired electrons, M − 1 |
+| `so3lr` Tauri (`so3lr-tauri-s/m/l`) | ✅ | ✅ | unpaired electrons, M − 1 |
 | `so3lr` v1, `so3lr_jaxmd` | ✅ | — | refuses M ≠ 1 (the v1 spin input was never trained) |
 | `mace` (OMol) | ✅ | ✅ | multiplicity M |
 | `mace` (OFF, MP, ANI-CC) | — | — | refuses M ≠ 1; warns that a charge is ignored |
@@ -190,7 +193,7 @@ what the model covers.
 | Potential | Elements |
 |-----------|----------|
 | `so3lr` v1, `so3lr_jaxmd` | H, C, N, O, F, P, S, Cl |
-| `so3lr` v2 | the QCML coverage: Z = 1–85 except He, Ne, Ar, Rb, Sr, Ba ([Ganscha et al., *Sci. Data* 12, 406 (2025)](https://doi.org/10.1038/s41597-025-04720-7), Fig. 1b) |
+| `so3lr` Tauri | the QCML coverage: Z = 1–85 except He, Ne, Ar, Rb, Sr, Ba ([Ganscha et al., *Sci. Data* 12, 406 (2025)](https://doi.org/10.1038/s41597-025-04720-7), Fig. 1b) |
 | `mace` | read from the model (e.g. MACE-OFF: H, C, N, O, F, P, S, Cl, Br, I; MACE-MP: 89 elements) |
 | `mace` OMol, `uma` (`omol` task), `orb` | the 83 OMol25 elements (H–Bi) |
 | `uma` (other tasks) | Z = 1–100 |

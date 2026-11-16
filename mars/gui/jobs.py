@@ -167,7 +167,12 @@ TASKS: Dict[str, Dict] = {
     },
 }
 
-SO3LR_MODELS = ["so3lr-1", "so3lr-2-s", "so3lr-2-m", "so3lr-2-l"]
+#: Undated Tauri names follow the latest release; the dated ones pin a release.
+SO3LR_MODELS = ["so3lr-1", "so3lr-tauri-s", "so3lr-tauri-m", "so3lr-tauri-l"] + [
+    f"so3lr-tauri-{size}-{release}" for release in ("2606", "2602") for size in "sml"
+]
+#: Earlier names still accepted from saved jobs (deprecated; same models).
+SO3LR_LEGACY_MODELS = ["so3lr-2-s", "so3lr-2-m", "so3lr-2-l"]
 
 #: Potentials offered in the GUI.  ``type: "file"/"files"`` fields take
 #: upload ids; the files are copied into the job directory.
@@ -176,7 +181,12 @@ POTENTIALS: List[Dict] = [
         "name": "so3lr",
         "label": "SO3LR",
         "fields": [
-            {"flag": "--so3lr-model", "label": "SO3LR model", "choices": SO3LR_MODELS},
+            {
+                "flag": "--so3lr-model",
+                "label": "SO3LR model",
+                "choices": SO3LR_MODELS,
+                "accepted": SO3LR_LEGACY_MODELS,
+            },
             {"flag": "--lr-cutoff", "label": "Long-range cutoff (Å)"},
             {"flag": "--so3lr-backend", "label": "Backend"},
         ],
@@ -570,6 +580,7 @@ def _field_from_action(spec: Dict, action: argparse.Action) -> Dict:
         "help": " ".join(help_text.split()),
         "basic": bool(spec.get("basic")),
         "show_if": spec.get("show_if") or [],
+        "accepted": spec.get("accepted") or [],
     }
 
 
@@ -758,7 +769,8 @@ def _field_args(field: Dict, value, resolve_file: Callable[[str], str]) -> List[
         return [flag] + [str(v) for v in items]
     if ftype == "choice":
         text = str(value)
-        if field["choices"] and text not in [str(c) for c in field["choices"]]:
+        allowed = [str(c) for c in (field["choices"] or []) + field.get("accepted", [])]
+        if field["choices"] and text not in allowed:
             raise PayloadError(f"{flag}: {text!r} is not one of {field['choices']}")
         if field.get("cli_default") is not None and text == str(field["cli_default"]):
             return []

@@ -205,7 +205,7 @@ def validate_model_inputs(
     if not spin_aware and float(spin) != 1.0:
         raise ValueError(
             f"{model} is closed-shell only (no spin input); got multiplicity {spin:g}. "
-            "Use a spin-aware potential (so3lr v2, mace omol, uma, orb, dxtb)." + tail
+            "Use a spin-aware potential (so3lr Tauri, mace omol, uma, orb, dxtb)." + tail
         )
     check_charge({"numbers": numbers}, charge=charge, multiplicity=spin)
 
@@ -637,32 +637,27 @@ class SO3LRPotential(PotentialWrapper):
     A short-range / long-range machine-learning potential for molecular
     simulations.  Uses JAX-MD neighbor lists internally.
 
-    **Two SO3LR releases are supported transparently** — the loader introspects
-    the installed package and adapts, so the same code runs in either
-    environment:
+    Models, selected through the ``model`` argument (``--so3lr-model``):
 
-    * **stable** ``so3lr`` (v0.1.x): a single bundled v1 model. Model selection
-      is unavailable; ``--so3lr-model`` is ignored (with a warning) and the v1
-      model is always used.
-    * **developing** ``so3lr`` (the ``so3lr_dev`` package, >=0.2): adds a v2
-      model registry selected through the ``model`` argument:
+    * ``"so3lr-1"`` — the original SO3LR model (JACS 2025; default).
+    * ``"so3lr-tauri-s"`` / ``"so3lr-tauri-m"`` / ``"so3lr-tauri-l"`` — the
+      SO3LR Tauri models (arXiv:2611.06237): small, medium (recommended
+      starting point) and large (most accurate). These names follow the latest
+      Tauri release; append the release date to pin one exactly, e.g.
+      ``"so3lr-tauri-m-2606"``.
+    * a filesystem path to a custom / fine-tuned model workdir.
 
-      * ``"so3lr-1"``   — v1, the legacy bundled model (default).
-      * ``"so3lr-2-s"`` — v2 small.
-      * ``"so3lr-2-m"`` — v2 medium (recommended for production).
-      * ``"so3lr-2-l"`` — v2 large (5 Å short-range cutoff, 256 features).
+    .. deprecated::
+       The earlier names still work and load the same models, but emit a
+       :class:`DeprecationWarning`: ``"so3lr-2-s/m/l"`` and the pre-release
+       ``"so3lr-s/m/l"`` load the ``-2606`` Tauri release (byte-identical
+       weights), ``"so3lr_v1"`` and bare ``"so3lr"`` load ``so3lr-1``.
 
-      ``model`` may also be a filesystem path to a custom / fine-tuned model
-      workdir, which is loaded directly.
-
-      .. deprecated::
-         The pre-release names ``"so3lr_v1"``, ``"so3lr"``, ``"so3lr-s"``,
-         ``"so3lr-m"`` and ``"so3lr-l"`` still work and resolve to the same
-         models as above, but emit a :class:`DeprecationWarning`; use the
-         ``so3lr-1`` / ``so3lr-2-s/m/l`` names in new code.
-
-    The developing v2 models are still under active development; the stable
-    package and the v1 model remain the safe default.
+    The loader introspects the installed package, so older SO3LR installs keep
+    working: v0.1.x has no model selection (``--so3lr-model`` is ignored with a
+    warning and the v1 model is used), and the 0.2.0 pre-release, whose
+    registry still names the Tauri models ``so3lr-s/m/l``, is translated
+    automatically.
 
     Reference:
         https://github.com/general-molecular-simulations/so3lr
@@ -670,37 +665,55 @@ class SO3LRPotential(PotentialWrapper):
     Installation::
 
         # 1. Install JAX matching your driver (GPU: cuda12 or cuda13)
-        pip install -U 'jax[cuda13]'
+        pip install -U 'jax[cuda13]<0.11'
         # ... or CPU-only:
-        pip install -U jax
+        pip install -U 'jax<0.11'
 
-        # 2a. Stable SO3LR (v1 only)
-        pip install so3lr
-        # 2b. ...or the developing package for the v2 models (so3lr-s/-m/-l)
-        pip install /path/to/so3lr_dev    # e.g. ../so3lr_dev-main
+        # 2. SO3LR from source (ships so3lr-1 and the Tauri models)
+        git clone https://github.com/general-molecular-simulations/so3lr.git
+        cd so3lr && pip install .
     """
 
     #: Map MARS-facing model names to SO3LR registry names.  Names not present
-    #: here (any custom path) pass through unchanged to
+    #: here (the Tauri names, a custom path) pass through unchanged to
     #: :func:`so3lr.model_registry.resolve_model`.
     _MODEL_ALIASES = {
-        # current names
+        # current name
         "so3lr-1": "so3lr",
-        "so3lr-2-s": "so3lr-s",
-        "so3lr-2-m": "so3lr-m",
-        "so3lr-2-l": "so3lr-l",
-        # deprecated pre-release names, kept working -- see _DEPRECATED_MODEL_NAMES
+        # deprecated names, kept working -- see _DEPRECATED_MODEL_NAMES.  The
+        # v2 names are pinned to the release they loaded before the Tauri
+        # publication, so earlier results reproduce exactly.
         "so3lr_v1": "so3lr",
+        "so3lr-2-s": "so3lr-tauri-s-2606",
+        "so3lr-2-m": "so3lr-tauri-m-2606",
+        "so3lr-2-l": "so3lr-tauri-l-2606",
+        "so3lr-s": "so3lr-tauri-s-2606",
+        "so3lr-m": "so3lr-tauri-m-2606",
+        "so3lr-l": "so3lr-tauri-l-2606",
     }
     #: Names accepted for backward compatibility that raise a DeprecationWarning.
-    #: "so3lr"/"so3lr-s"/"so3lr-m"/"so3lr-l" are also SO3LR's own registry keys
-    #: (not MARS aliases -- they pass through _MODEL_ALIASES.get() unchanged),
-    #: so they are listed here rather than in _MODEL_ALIASES.
-    _DEPRECATED_MODEL_NAMES = {"so3lr_v1", "so3lr", "so3lr-s", "so3lr-m", "so3lr-l"}
+    #: Bare "so3lr" is SO3LR's own registry key for the v1 model (it passes
+    #: through _MODEL_ALIASES.get() unchanged), so it is listed here only.
+    _DEPRECATED_MODEL_NAMES = {
+        "so3lr_v1",
+        "so3lr",
+        "so3lr-2-s",
+        "so3lr-2-m",
+        "so3lr-2-l",
+        "so3lr-s",
+        "so3lr-m",
+        "so3lr-l",
+    }
+    #: Suggested replacement for each deprecated name.
+    _MODEL_REPLACEMENTS = {
+        "so3lr_v1": "so3lr-1",
+        "so3lr": "so3lr-1",
+        **{f"so3lr-{p}{s}": f"so3lr-tauri-{s}" for p in ("2-", "") for s in "sml"},
+    }
     _DEFAULT_MODEL = "so3lr-1"
     #: Elements of the SO3LR v1 training data (``so3lr.prepare_dimer_xyz``).
     _SO3LR_V1_ELEMENTS = frozenset({1, 6, 7, 8, 9, 15, 16, 17})
-    #: Elements of the v2 models: the QCML dataset coverage (Z <= 85 without
+    #: Elements of the Tauri models: the QCML dataset coverage (Z <= 85 without
     #: He, Ne, Ar, Rb, Sr, Ba; Fig. 1b of Ganscha et al., Sci. Data 12, 406
     #: (2025), doi:10.1038/s41597-025-04720-7).
     _SO3LR_V2_ELEMENTS = frozenset(range(1, 86)) - {2, 10, 18, 37, 38, 56}
@@ -724,18 +737,19 @@ class SO3LRPotential(PotentialWrapper):
             lr_cutoff: Long-range cutoff in Angstrom.
                 Use 1000 for gas-phase (no PBC), 12 for periodic systems.
             dtype: Float precision (default ``jnp.float32``).
-            model: Bundled model name (``"so3lr-1"``, ``"so3lr-2-s"``,
-                ``"so3lr-2-m"``, ``"so3lr-2-l"``) or a path to a custom /
+            model: Bundled model name (``"so3lr-1"``, ``"so3lr-tauri-s"``,
+                ``"so3lr-tauri-m"``, ``"so3lr-tauri-l"``, or a dated release
+                such as ``"so3lr-tauri-m-2606"``) or a path to a custom /
                 fine-tuned model workdir.  ``None`` uses the default
-                (``"so3lr-1"``). The pre-release names (``"so3lr_v1"``,
-                ``"so3lr"``, ``"so3lr-s"``, ``"so3lr-m"``, ``"so3lr-l"``)
-                still work but are deprecated.
+                (``"so3lr-1"``). The earlier names (``"so3lr-2-s/m/l"``,
+                ``"so3lr-s/m/l"``, ``"so3lr_v1"``, ``"so3lr"``) still work but
+                are deprecated.
             charge: Total system charge.
-            spin: Spin multiplicity 2S+1 (default 1). Only the v2 models
-                (so3lr-2-s/m/l) are spin-aware; they receive the number of
-                unpaired electrons (multiplicity - 1). v1 refuses spin != 1.
+            spin: Spin multiplicity 2S+1 (default 1). Only the Tauri models
+                are spin-aware; they receive the number of unpaired
+                electrons (multiplicity - 1). v1 refuses spin != 1.
             capacity_multiplier: Accepted for backward compatibility; unused
-                (SO3LR v2 sizes its neighbor lists from the per-list buffer
+                (SO3LR >= 0.2 sizes its neighbor lists from the per-list buffer
                 multipliers).
             buffer_size_multiplier_sr: Buffer multiplier for SR neighbor list.
             buffer_size_multiplier_lr: Buffer multiplier for LR neighbor list.
@@ -750,7 +764,8 @@ class SO3LRPotential(PotentialWrapper):
             raise ImportError(
                 "SO3LR is not installed or failed to import. Install with:\n"
                 "  pip install -U 'jax[cuda12]'      # or jax[cuda13] / plain jax (CPU)\n"
-                "  pip install /path/to/so3lr_dev     # e.g. ../so3lr_dev-main\n"
+                "  git clone https://github.com/general-molecular-simulations/so3lr.git\n"
+                "  cd so3lr && pip install .\n"
                 "If it is installed, see the chained error above (an outdated "
                 "orbax-checkpoint or flax is the usual cause; see docs/install.md)."
             ) from exc
@@ -776,39 +791,49 @@ class SO3LRPotential(PotentialWrapper):
             patched_kwargs.update(output_intermediate_quantities=["partial_charges"])
 
         # ---- resolve model name --------------------------------------------
-        # A bundled name (so3lr-1/2-s/2-m/2-l), a deprecated pre-release name,
-        # or a filesystem path.  The developing SO3LR package loads all of
-        # these through ``model=``.
+        # A bundled name (so3lr-1, so3lr-tauri-*), a deprecated earlier name,
+        # or a filesystem path.  SO3LR >= 0.2 loads all of these through
+        # ``model=``.
         if model is None:
             model = self._DEFAULT_MODEL
         elif model in self._DEPRECATED_MODEL_NAMES:
-            replacement = self._MODEL_ALIASES.get(model, model)
-            new_name = {
-                v: k
-                for k, v in self._MODEL_ALIASES.items()
-                if k not in self._DEPRECATED_MODEL_NAMES
-            }.get(replacement, replacement)
+            new_name = self._MODEL_REPLACEMENTS[model]
+            resolved = self._MODEL_ALIASES.get(model, model)
+            pin = f" (or {resolved!r} to pin the exact same model)" if resolved != "so3lr" else ""
             warnings.warn(
                 f"SO3LR model name {model!r} is deprecated and will be removed in a "
-                f"future release; use {new_name!r} instead (same model).",
+                f"future release; use {new_name!r} instead{pin}.",
                 DeprecationWarning,
                 stacklevel=2,
             )
         resolved_model = self._MODEL_ALIASES.get(model, model)
 
         # ---- detect the installed SO3LR API --------------------------------
-        # Two SO3LR releases are supported transparently, detected by
-        # introspection (not a version pin) so both conda environments work:
-        #   * stable ``so3lr`` (v0.1.x): one bundled v1 model — ``So3lrPotential``
-        #     takes no ``model=`` argument, and ``to_jax_md_custom`` sizes cells
-        #     with ``minimum_cell_size_multiplier_sr``/``_lr``.
-        #   * developing ``so3lr`` (``so3lr_dev``, >=0.2): adds the v2 model
-        #     registry (``model=``) and a single ``minimum_cell_size_multiplier``.
+        # SO3LR releases are supported transparently, detected by introspection
+        # (not a version pin):
+        #   * v0.1.x: one bundled v1 model — ``So3lrPotential`` takes no
+        #     ``model=`` argument, and ``to_jax_md_custom`` sizes cells with
+        #     ``minimum_cell_size_multiplier_sr``/``_lr``.
+        #   * >= 0.2: the model registry (``model=``) and a single
+        #     ``minimum_cell_size_multiplier``.  The 0.2.0 pre-release names the
+        #     Tauri models ``so3lr-{s,m,l}[-YYMM]``; the published package
+        #     ``so3lr-tauri-{s,m,l}[-YYMM]`` (same weights).
         import inspect
 
         so3lr_version = getattr(_so3lr_mod, "__version__", "?")
         pot_params = inspect.signature(_So3lrPotential).parameters
         supports_model = "model" in pot_params or "workdir" in pot_params
+
+        if supports_model and resolved_model.startswith("so3lr-tauri-"):
+            try:
+                from so3lr.model_registry import available_models
+
+                known = set(available_models())
+            except Exception:
+                known = set()
+            legacy = resolved_model.replace("so3lr-tauri-", "so3lr-", 1)
+            if known and resolved_model not in known and legacy in known:
+                resolved_model = legacy
 
         pot_kwargs = dict(lr_cutoff=lr_cutoff, dtype=dtype, **patched_kwargs)
         if supports_model:
@@ -816,17 +841,18 @@ class SO3LRPotential(PotentialWrapper):
         elif resolved_model != "so3lr":
             # Compare the alias-resolved name (not the raw ``model`` string) so
             # every v1 spelling -- so3lr-1, so3lr_v1, bare so3lr -- is silently
-            # a no-op here; only a genuine v2 request is downgraded with a warning.
+            # a no-op here; only a genuine Tauri request is downgraded with a warning.
             warnings.warn(
                 f"The installed SO3LR package (v{so3lr_version}) does not support "
                 f"model selection; the requested --so3lr-model {model!r} is ignored and "
-                "the bundled v1 model is used. Install the developing SO3LR package "
-                "(so3lr_dev, >=0.2) to use the so3lr-2-s / so3lr-2-m / so3lr-2-l v2 models.",
+                "the bundled v1 model is used. Update SO3LR from "
+                "https://github.com/general-molecular-simulations/so3lr to use the "
+                "so3lr-tauri-s / so3lr-tauri-m / so3lr-tauri-l models.",
                 UserWarning,
                 stacklevel=2,
             )
 
-        # Only the v2 models were trained with spin. v1 has a spin input that
+        # Only the Tauri models were trained with spin. v1 has a spin input that
         # was never trained, so it always gets 0 unpaired electrons and
         # open-shell requests are refused rather than silently mis-modelled.
         is_v1 = resolved_model == "so3lr" or not supports_model
@@ -844,9 +870,9 @@ class SO3LRPotential(PotentialWrapper):
             hint=(
                 ""
                 if not is_v1
-                else "SO3LR v1 is closed-shell only and covers H C N O F P S Cl; the v2 "
-                "models (--so3lr-model so3lr-2-s / so3lr-2-m / so3lr-2-l) are spin-aware and "
-                "cover more elements."
+                else "SO3LR v1 is closed-shell only and covers H C N O F P S Cl; the Tauri "
+                "models (--so3lr-model so3lr-tauri-s / so3lr-tauri-m / so3lr-tauri-l) are "
+                "spin-aware and cover more elements."
             ),
         )
 
@@ -870,8 +896,8 @@ class SO3LRPotential(PotentialWrapper):
         )
         if "num_unpaired_electrons" in tjm_params:
             tjm_kwargs["num_unpaired_electrons"] = 0.0 if is_v1 else self._num_unpaired
-        # The minimum-cell-size kwarg was split per neighbor list (sr/lr) in the
-        # stable release and merged into one in the developing release.
+        # The minimum-cell-size kwarg was split per neighbor list (sr/lr) in
+        # v0.1.x and merged into one in >= 0.2.
         if "minimum_cell_size_multiplier" in tjm_params:
             tjm_kwargs["minimum_cell_size_multiplier"] = 1.0
         else:
@@ -1182,7 +1208,7 @@ class MACEPotential(PotentialWrapper):
         if foundation != "omol" and float(spin) != 1.0:
             raise ValueError(
                 f"MACE-{foundation.upper()} is a closed-shell model with no spin input; "
-                "use --mace-foundation omol (or uma / orb / so3lr v2 / dxtb) for open-shell systems."
+                "use --mace-foundation omol (or uma / orb / so3lr Tauri / dxtb) for open-shell systems."
             )
         if foundation != "omol" and float(charge) != 0.0:
             warnings.warn(

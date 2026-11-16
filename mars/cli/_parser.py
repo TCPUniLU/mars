@@ -34,7 +34,7 @@ COMMON OPTIONS (available on every subcommand)
   --dxtb-method {gfn1,gfn2}
                     dxtb method    (only with --potential dxtb)
   --so3lr-model NAME|PATH · --lr-cutoff Å
-                    SO3LR model (so3lr-1/2-s/2-m/2-l or path) and long-range cutoff
+                    SO3LR model (so3lr-1, so3lr-tauri-s/m/l or path) and long-range cutoff
   --mace-backend {auto,mace-jax,jaxmd,torch} · --so3lr-backend {so3lr,jaxmd}
                     Implementation switches (defaults: the developers' own code)
   --uma-model NAME · --uma-task TASK · --ml-model NAME|PATH
@@ -143,7 +143,7 @@ EXAMPLES
   mars viewer complex.xyz --nci --nci-buffer 5.0          # preview NCI wall
 
   # Switching potentials
-  mars input.xyz --potential so3lr --so3lr-model so3lr-2-l # SO3LR v2 large
+  mars input.xyz --potential so3lr --so3lr-model so3lr-tauri-l  # SO3LR Tauri large
   mars input.xyz --potential mace --mace-foundation off --mace-model small
   mars input.xyz --potential dxtb --dxtb-method gfn2
   mars optimize input.xyz --potential harmonic            # toy potential (tests)
@@ -295,7 +295,7 @@ Examples:
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr Tauri, "
         "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     ir_parser.add_argument(
@@ -326,9 +326,10 @@ Examples:
         "--so3lr-model",
         type=str,
         default="so3lr-1",
-        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
-        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
-        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
+        help="SO3LR model: so3lr-1 | so3lr-tauri-s | so3lr-tauri-m | so3lr-tauri-l "
+        "(add -YYMM to pin a release, e.g. so3lr-tauri-m-2606), or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The earlier names "
+        "so3lr-2-s/m/l, so3lr-s/m/l, so3lr_v1 and so3lr still work but are deprecated.",
     )
     ir_parser.add_argument(
         "--lr-cutoff",
@@ -772,7 +773,7 @@ Examples:
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr Tauri, "
         "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     opt_pot_group.add_argument(
@@ -789,9 +790,10 @@ Examples:
         "--so3lr-model",
         type=str,
         default="so3lr-1",
-        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
-        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
-        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
+        help="SO3LR model: so3lr-1 | so3lr-tauri-s | so3lr-tauri-m | so3lr-tauri-l "
+        "(add -YYMM to pin a release, e.g. so3lr-tauri-m-2606), or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The earlier names "
+        "so3lr-2-s/m/l, so3lr-s/m/l, so3lr_v1 and so3lr still work but are deprecated.",
     )
     opt_pot_group.add_argument(
         "--lr-cutoff",
@@ -1161,7 +1163,7 @@ def _add_conformer_search_arguments(parser):
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr Tauri, "
         "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
 
@@ -1181,9 +1183,10 @@ def _add_conformer_search_arguments(parser):
         "--so3lr-model",
         type=str,
         default="so3lr-1",
-        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
-        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
-        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
+        help="SO3LR model: so3lr-1 | so3lr-tauri-s | so3lr-tauri-m | so3lr-tauri-l "
+        "(add -YYMM to pin a release, e.g. so3lr-tauri-m-2606), or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The earlier names "
+        "so3lr-2-s/m/l, so3lr-s/m/l, so3lr_v1 and so3lr still work but are deprecated.",
     )
     so3lr_group.add_argument(
         "--lr-cutoff",
@@ -1554,9 +1557,10 @@ Examples:
         "--so3lr-model",
         type=str,
         default="so3lr-1",
-        help="SO3LR model: so3lr-1 | so3lr-2-s | so3lr-2-m | so3lr-2-l, or a path to a "
-        "custom/fine-tuned model (default: so3lr-1). The pre-release names "
-        "so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated.",
+        help="SO3LR model: so3lr-1 | so3lr-tauri-s | so3lr-tauri-m | so3lr-tauri-l "
+        "(add -YYMM to pin a release, e.g. so3lr-tauri-m-2606), or a path to a "
+        "custom/fine-tuned model (default: so3lr-1). The earlier names "
+        "so3lr-2-s/m/l, so3lr-s/m/l, so3lr_v1 and so3lr still work but are deprecated.",
     )
     pot_group.add_argument(
         "--lr-cutoff",
@@ -1590,7 +1594,7 @@ Examples:
         "--spin",
         type=float,
         default=1.0,
-        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr v2, "
+        help="Spin multiplicity 2S+1 (default 1). Used by spin-aware potentials: so3lr Tauri, "
         "mace omol, uma (omol task), orb, dxtb; closed-shell-only potentials refuse spin != 1",
     )
     pot_group.add_argument(

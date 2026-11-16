@@ -36,9 +36,9 @@ dependencies:
       # - "orbax-checkpoint>=0.12"
 
       # SO3LR (default): helper deps here, then install SO3LR from source
-      # (the developing package "so3lr_dev" adds the v2 models):
+      # (ships so3lr-1 and the SO3LR Tauri models):
       #   git clone https://github.com/general-molecular-simulations/so3lr.git
-      #   cd so3lr && pip install .          # or: pip install /path/to/so3lr_dev
+      #   cd so3lr && pip install .
       # - ase
       # - h5py
 

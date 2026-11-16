@@ -153,7 +153,19 @@ and Computation*; please cite it:
 ## ML potentials and engines
 
 ```bibtex
-% SO3LR: default potential (mars/potentials.py — SO3LRPotential)
+% SO3LR Tauri: the so3lr-tauri-s/m/l models (--so3lr-model so3lr-tauri-*;
+% formerly so3lr-2-s/m/l). Cite together with the original SO3LR article below.
+@article{kabylda2026so3lr,
+  title   = {{SO3LR Tauri: Generally Applicable Force Fields for Reactive (Bio)Molecular Simulations Covering the Periodic Table}},
+  author  = {Kabylda, Adil and Br{\"u}nig, Florian N. and Gallegos, Miguel and Frank, J. Thorben and Moerman, Evgeny and Unke, Oliver T. and Chmiela, Stefan and M{\"u}ller, Klaus-Robert and Tkatchenko, Alexandre},
+  journal = {arXiv preprint arXiv:2611.06237},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2611.06237},
+  url     = {https://arxiv.org/abs/2611.06237}
+}
+
+% SO3LR: default potential (mars/potentials.py — SO3LRPotential); the
+% so3lr-1 model, and the framework the Tauri models build on
 @article{kabylda2025so3lr,
   title   = {Molecular Simulations with a Pretrained Neural Network and Universal Pairwise Force Fields},
   author  = {Kabylda, Adil and Frank, J. Thorben and Su{\'a}rez-Dou, Sergio and Khabibrakhmanov, Almaz and Medrano Sandonas, Leonardo and Unke, Oliver T. and Chmiela, Stefan and M{\"u}ller, Klaus-Robert and Tkatchenko, Alexandre},

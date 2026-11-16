@@ -113,28 +113,33 @@ git clone https://github.com/general-molecular-simulations/so3lr.git
 cd so3lr && pip install . && cd ..
 ```
 
-**Two SO3LR packages are supported** and MARS auto-detects which is installed:
+SO3LR (≥ 0.2) ships the original model and the
+[SO3LR Tauri](https://arxiv.org/abs/2611.06237) models. Select one with
+`--so3lr-model`:
 
-- **Stable `so3lr`** (the command above, v0.1.x) — ships the **v1** model only.
-  `--so3lr-model` is ignored (MARS warns and uses v1).
-- **Developing package** (`so3lr_dev`, ≥ 0.2) — adds the **v2** model registry.
-  Install it in place of the stable one (a separate environment is convenient):
+| `--so3lr-model` | Model |
+|-----------------|-------|
+| `so3lr-1` *(default)* | the original SO3LR model (H, C, N, O, F, P, S, Cl; closed-shell) |
+| `so3lr-tauri-s` / `so3lr-tauri-m` / `so3lr-tauri-l` | SO3LR Tauri small / medium (start here) / large (most accurate), latest release |
+| `so3lr-tauri-{s,m,l}-2606` | Tauri June 2026 release (the current latest) |
+| `so3lr-tauri-{s,m,l}-2602` | Tauri February 2026 release |
+| *(a path)* | a custom / fine-tuned model workdir |
 
-    ```bash
-    pip install -U "orbax-checkpoint>=0.12"   # older orbax breaks on JAX >= 0.10
-    pip install /path/to/so3lr_dev            # e.g. ../so3lr_dev-main
-    ```
+The undated Tauri names always load the latest release that the installed
+SO3LR package ships; add the release date (`-2606`, `-2602`) to pin one, for
+example to reproduce published results. Older SO3LR installs (v0.1.x) have no
+model selection: MARS warns and uses `so3lr-1`.
 
-    `so3lr_dev` pins `flax<0.12.9`; the `[so3lr]` extra above already carries
-    the matching `flax` and `orbax-checkpoint` constraints.
+!!! note "Earlier model names"
+    The names used before the Tauri publication still work and load the same
+    weights, with a deprecation warning: `so3lr-2-s/m/l` and the pre-release
+    `so3lr-s/m/l` load `so3lr-tauri-s/m/l-2606`; `so3lr_v1` and `so3lr` load
+    `so3lr-1`.
 
-With the developing package, select a bundled v2 model with `--so3lr-model`:
-`so3lr-2-s` (small), `so3lr-2-m` (medium), `so3lr-2-l` (large), or `so3lr-1`
-(legacy v1, **default**). A filesystem path to a custom / fine-tuned model
-workdir also works. The v2 models are still under active development, so the
-v1 default remains the safe choice for production. The pre-release names
-(`so3lr_v1`, `so3lr`, `so3lr-s`, `so3lr-m`, `so3lr-l`) still work but are
-deprecated.
+The SO3LR Tauri weights are released by their authors under CC BY-NC 4.0
+(non-commercial use); the code and the original model are MIT. When you use a
+Tauri model, cite the [SO3LR Tauri preprint](about/citation.md#ml-potentials-and-engines)
+together with the original SO3LR article.
 
 ### MACE
 
@@ -341,7 +346,7 @@ The first MACE run downloads the foundation model and converts it to JAX
 
 ## Tested versions
 
-The SO3LR (`so3lr_dev` 0.2.0) + MACE combination was verified on Linux with an
+The SO3LR (0.2.0) + MACE combination was verified on Linux with an
 NVIDIA driver reporting CUDA 13.0, Python 3.12:
 
 | Package | Version |

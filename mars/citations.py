@@ -15,6 +15,7 @@ BIB: Dict[str, str] = {
     "Peng1996": "@article{Peng1996,\n  author  = {Peng, Chunyang and Ayala, Philippe Y. and Schlegel, H. Bernhard and Frisch, Michael J.},\n  title   = {Using redundant internal coordinates to optimize equilibrium geometries and transition states},\n  journal = {Journal of Computational Chemistry},\n  volume  = {17},\n  number  = {1},\n  pages   = {49--56},\n  year    = {1996},\n  doi     = {10.1002/(SICI)1096-987X(19960115)17:1<49::AID-JCC5>3.0.CO;2-0}\n}",
     "Bakken2002": "@article{Bakken2002,\n  author  = {Bakken, Vebj{\\o}rn and Helgaker, Trygve},\n  title   = {The efficient optimization of molecular geometries using redundant internal coordinates},\n  journal = {The Journal of Chemical Physics},\n  volume  = {117},\n  number  = {20},\n  pages   = {9160--9174},\n  year    = {2002},\n  doi     = {10.1063/1.1515483}\n}",
     "Wang2016": "@article{Wang2016,\n  author  = {Wang, Lee-Ping and Song, Chenchen},\n  title   = {Geometry optimization made simple with translation and rotation coordinates},\n  journal = {The Journal of Chemical Physics},\n  volume  = {144},\n  number  = {21},\n  pages   = {214108},\n  year    = {2016},\n  doi     = {10.1063/1.4952956}\n}",
+    "kabylda2026so3lr": '@article{kabylda2026so3lr,\n  title   = {{SO3LR Tauri: Generally Applicable Force Fields for Reactive (Bio)Molecular Simulations Covering the Periodic Table}},\n  author  = {Kabylda, Adil and Br{\\"u}nig, Florian N. and Gallegos, Miguel and Frank, J. Thorben and Moerman, Evgeny and Unke, Oliver T. and Chmiela, Stefan and M{\\"u}ller, Klaus-Robert and Tkatchenko, Alexandre},\n  journal = {arXiv preprint arXiv:2611.06237},\n  year    = {2026},\n  doi     = {10.48550/arXiv.2611.06237},\n  url     = {https://arxiv.org/abs/2611.06237}\n}',
     "kabylda2025so3lr": "@article{kabylda2025so3lr,\n  title   = {Molecular Simulations with a Pretrained Neural Network and Universal Pairwise Force Fields},\n  author  = {Kabylda, Adil and Frank, J. Thorben and Su{\\'a}rez-Dou, Sergio and Khabibrakhmanov, Almaz and Medrano Sandonas, Leonardo and Unke, Oliver T. and Chmiela, Stefan and M{\\\"u}ller, Klaus-Robert and Tkatchenko, Alexandre},\n  journal = {Journal of the American Chemical Society},\n  year    = {2025},\n  volume  = {147},\n  number  = {37},\n  pages   = {33723--33734},\n  doi     = {10.1021/jacs.5c09558}\n}",
     "Kovacs2025maceoff": "@article{Kovacs2025maceoff,\n  author  = {Kov{\\'a}cs, D{\\'a}vid P{\\'e}ter and Moore, J. Harry and Browning, Nicholas J. and Batatia, Ilyes and Horton, Joshua T. and Pu, Yixuan and Kapil, Venkat and Witt, William C. and Magd{\\'a}u, Ioan-Bogdan and Cole, Daniel J. and Cs{\\'a}nyi, G{\\'a}bor},\n  title   = {{MACE-OFF: Short-Range Transferable Machine Learning Force Fields for Organic Molecules}},\n  journal = {J. Am. Chem. Soc.},\n  year    = {2025},\n  volume  = {147},\n  number  = {21},\n  pages   = {17598--17611},\n  doi     = {10.1021/jacs.4c07099}\n}",
     "friede2024dxtb": "@article{friede2024dxtb,\n  title   = {dxtb — An efficient and fully differentiable framework for extended tight-binding},\n  author  = {Friede, Marvin and Hölzer, Christian and Ehlert, Sebastian and Grimme, Stefan},\n  journal = {The Journal of Chemical Physics},\n  year    = {2024},\n  volume  = {161},\n  pages   = {062501},\n  doi     = {10.1063/5.0216715}\n}",
@@ -62,6 +63,16 @@ POTENTIALS = {
     "mm": ["eastman2024openmm8"],
     "amoeba": ["eastman2024openmm8"],
 }
+
+
+#: SO3LR model names that load a Tauri model: ``so3lr-tauri-{s,m,l}[-YYMM]``
+#: and the deprecated ``so3lr-2-{s,m,l}`` / ``so3lr-{s,m,l}[-YYMM]``.
+_SO3LR_TAURI = re.compile(r"^so3lr-(tauri-|2-)?[sml](-\d{4})?$")
+
+
+def so3lr_is_tauri(model) -> bool:
+    """True when an SO3LR ``--so3lr-model`` value selects a Tauri model."""
+    return bool(model) and bool(_SO3LR_TAURI.match(str(model)))
 
 
 def entries_from_markdown(text: str) -> Dict[str, str]:
@@ -157,6 +168,12 @@ def for_job(payload: dict) -> List[str]:
     )
     opts = {**(payload.get("options") or {}), **(payload.get("potential_options") or {})}
     pot = payload.get("potential")
+    if (
+        pot == "so3lr"
+        and str(opts.get("--so3lr-backend", "so3lr")) != "jaxmd"  # jax-md ships v1 only
+        and so3lr_is_tauri(opts.get("--so3lr-model"))
+    ):
+        keys.insert(keys.index("kabylda2025so3lr"), "kabylda2026so3lr")
     if pot == "mace":
         fam = str(opts.get("--mace-foundation", "off"))
         keys += {

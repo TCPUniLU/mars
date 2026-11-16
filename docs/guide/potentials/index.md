@@ -5,7 +5,7 @@ link for installation and options.
 
 | Potential | Kind | Charge | Spin | Best for | IR intensities | Install |
 |-----------|------|:------:|:----:|----------|:--------------:|---------|
-| [`so3lr`](ml.md) *(default)* | ML | ✅ | v2 models only | Organic and biomolecules, long-range interactions | ✅ | source |
+| [`so3lr`](ml.md) *(default)* | ML | ✅ | Tauri models only | Organic and biomolecules, long-range interactions | ✅ | source |
 | [`mace`](ml.md) | ML | OMol only | OMol only | Organic molecules (OFF), materials (MP), broad chemistry (OMol) | — | `[mace]` |
 | [`uma`](ml.md) | ML | ✅ | ✅ | Broad chemistry (`omol`), materials (`omat`) | — | `[uma]` |
 | [`orb`](ml.md) | ML | ✅ | ✅ | Broad molecular chemistry (OMol25) | — | `[jaxmd-ml]` |
@@ -40,7 +40,7 @@ mars input.xyz                                            # SO3LR (default)
 mars input.xyz --potential mace --mace-foundation off --mace-model small
 mars input.xyz --potential uma --uma-task omol --charge -1
 mars input.xyz --potential orb --spin 2                    # doublet radical
-mars input.xyz --so3lr-model so3lr-2-m --spin 3            # triplet with SO3LR v2
+mars input.xyz --so3lr-model so3lr-tauri-m --spin 3        # triplet with SO3LR Tauri
 mars optimize ala2.xyz --potential amber --prmtop ala2.prmtop
 mars ir water3.pdb --potential amoeba --amoeba-polarization mutual
 ```

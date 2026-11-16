@@ -58,12 +58,13 @@ Pick the JAX backend for your hardware, then add the ML potential(s) you need:
 pip install -U "jax[cuda12]<0.11"     # NVIDIA GPU (CUDA 12); or jax[cuda13]<0.11, or "jax<0.11" for CPU
 
 # SO3LR (default, recommended) — installed from source:
-# v2 ships so3lr-2-s / so3lr-2-m / so3lr-2-l plus the legacy so3lr-1 model.
+# ships the SO3LR Tauri models (so3lr-tauri-s / -m / -l) plus the original so3lr-1 model.
 pip install -e ".[so3lr]"
 git clone https://github.com/general-molecular-simulations/so3lr.git
 cd so3lr && pip install . && cd ..
-# pick a model at run time with --so3lr-model {so3lr-1,so3lr-2-s,so3lr-2-m,so3lr-2-l}
-# (the pre-release names so3lr_v1/so3lr/so3lr-s/so3lr-m/so3lr-l still work but are deprecated)
+# pick a model at run time with --so3lr-model {so3lr-1,so3lr-tauri-s,so3lr-tauri-m,so3lr-tauri-l}
+# (latest release; pin one with e.g. so3lr-tauri-m-2606 or so3lr-tauri-m-2602.
+#  The earlier names so3lr-2-s/m/l still work but are deprecated)
 
 pip install -e ".[mace]"              # MACE   (mace-torch + flax pin)
 pip install "git+https://github.com/ACEsuit/mace-jax"   # + JAX-native MACE (not on PyPI)

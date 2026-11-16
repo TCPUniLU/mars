@@ -98,10 +98,23 @@ def _potential_citations(args):
     """Citation line(s) for the selected potential (matches the Citation docs)."""
     p = args.potential
     if p == "so3lr":
-        return [
+        from ..citations import so3lr_is_tauri
+
+        refs = [
             "A. Kabylda, J. T. Frank, S. Suárez-Dou, et al., "
             "J. Am. Chem. Soc. 147 (2025) 33723-33734. doi:10.1021/jacs.5c09558"
         ]
+        # The jax-md backend ships the v1 weights only.
+        if getattr(args, "so3lr_backend", "so3lr") != "jaxmd" and so3lr_is_tauri(
+            getattr(args, "so3lr_model", None)
+        ):
+            refs.insert(
+                0,
+                "A. Kabylda, F. N. Brünig, M. Gallegos, et al., SO3LR Tauri: Generally "
+                "Applicable Force Fields for Reactive (Bio)Molecular Simulations Covering "
+                "the Periodic Table, arXiv:2611.06237 (2026). doi:10.48550/arXiv.2611.06237",
+            )
+        return refs
     if p == "mace":
         return [
             "D. P. Kovács, J. H. Moore, N. J. Browning, et al., "
